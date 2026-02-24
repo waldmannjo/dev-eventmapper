@@ -253,7 +253,14 @@ def get_similar_historical_entries(query_vec, df_hist, hist_vecs, top_k=3):
 
 async def classify_single_row(async_client, row_text, candidates, hist_str, model_name, semaphore):
     async with semaphore:
-        cand_str = "\n".join([f"- {c['code']} ({c['desc']})" for c in candidates])
+        cand_str = "\n".join([
+            f"- {c['code']} ({c['desc']}) — similarity: {c['score']:.0%}"
+            for c in candidates
+        ])
+        if len(candidates) >= 2:
+            gap = candidates[0]['score'] - candidates[1]['score']
+            if gap < 0.05:
+                cand_str += f"\n\nNote: Top candidates are very close in score (gap: {gap:.1%}). Pay close attention to semantic differences."
         
         system_prompt = "Du bist ein Mapping-Experte. Wähle den passendsten Code aus den Vorschlägen. Nutze die historischen Beispiele als Orientierung für den Stil der Zuordnung."
         
