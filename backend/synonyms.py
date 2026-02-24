@@ -49,3 +49,25 @@ REASON_SYNONYMS_COLUMNS = [
     "Code (bei Scans)",
     "Remarks/Comment/Details"
 ]
+
+# Normalization map for carrier status descriptions.
+# Applied before embedding and BM25 scoring to unify abbreviations,
+# multilingual variants, and domain jargon into consistent terms.
+CONTENT_NORMALIZATION = {
+    # DE abbreviations
+    "lkw": "truck",
+    "empf.": "empfänger",
+    "zust.": "zustellung",
+    "abh.": "abholung",
+    "sendg.": "sendung",
+    "lfg.": "lieferung",
+    # Facility synonyms → unified term
+    "depot": "facility",
+    "terminal": "facility",
+    "lager": "facility",
+    "hub": "facility",
+    "sortierzentrum": "facility",
+    # Common carrier jargon
+    "avis": "notification",
+    "aviso": "notification",
+}

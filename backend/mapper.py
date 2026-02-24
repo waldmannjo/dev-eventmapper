@@ -5,6 +5,7 @@ import asyncio
 import hashlib
 import json
 import os
+import re
 
 import numpy as np
 import pandas as pd
@@ -29,6 +30,7 @@ import streamlit as st # Für Caching des Modells
 
 from codes import CODES  # Importiert codes.py aus dem Hauptverzeichnis
 from rank_bm25 import BM25Okapi
+from backend.synonyms import CONTENT_NORMALIZATION
 
 # Konfiguration
 EMB_MODEL = "text-embedding-3-large" # Konsistent bleiben
@@ -39,6 +41,26 @@ HISTORY_FILE = "examples/CES_Umschlüsselungseinträge_all.xlsx"
 
 def sigmoid(x):
     return 1 / (1 + np.exp(-x))
+
+def normalize_input(text):
+    """Normalize carrier text before embedding/BM25.
+
+    Performs:
+    - Timestamp removal (e.g. '2026-02-17 14:30:00' or '2026-02-17T14:30')
+    - Tracking ID removal (long mixed alphanumeric sequences ≥10 chars with ≥1 digit)
+    - Lowercasing
+    - Synonym / abbreviation expansion via CONTENT_NORMALIZATION
+    """
+    # Remove timestamps before lowercasing so 'T' separator is matched correctly
+    text = re.sub(r'\d{4}-\d{2}-\d{2}[\sT]\d{2}:\d{2}(:\d{2})?', '', text)
+    # Remove tracking IDs: long alphanumeric tokens (≥10 chars) that contain at
+    # least one digit — avoids stripping plain German words like 'sortierzentrum'
+    text = re.sub(r'\b(?=[A-Z0-9]*\d)[A-Z0-9]{10,}\b', '', text, flags=re.IGNORECASE)
+    text = text.lower()
+    # Apply synonym / abbreviation mapping
+    for abbrev, expansion in CONTENT_NORMALIZATION.items():
+        text = text.replace(abbrev, expansion)
+    return text.strip()
 
 @st.cache_resource
 def build_bm25_index():
@@ -320,9 +342,10 @@ def run_mapping_step4(client, df, model_name, threshold: float = 0.60, progress_
         parts.append(str(row["Beschreibung"]))
 
         combined_text = " ".join(parts)
+        normalized_text = normalize_input(combined_text)
 
-        input_texts.append(f"Beschreibung eines Sendungsstatus vom Transportdienstleister: {combined_text}")
-        raw_input_texts_for_ce.append(combined_text)
+        input_texts.append(f"Beschreibung eines Sendungsstatus vom Transportdienstleister: {normalized_text}")
+        raw_input_texts_for_ce.append(normalized_text)
 
     q_vecs = embed_texts(client, input_texts)
 
