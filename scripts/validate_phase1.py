@@ -15,7 +15,6 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 from backend.mapper import run_mapping_step4
 from openai import OpenAI
-from codes import CODES
 
 def load_validation_data():
     """Load and split historical data into train/validation."""
