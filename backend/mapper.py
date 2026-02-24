@@ -71,19 +71,41 @@ def normalize_input(text):
         text = re.sub(pattern, expansion, text)
     return text.strip()
 
+def tokenize_for_bm25(text):
+    """Tokenize text for BM25, expanding German compound words into subword parts.
+
+    Splits on whitespace first, then extracts alphabetic parts from each token
+    using a regex that handles umlauts (ä, ö, ü, ß).  When a token contains
+    multiple parts (i.e. it was a compound or hyphenated word), both the
+    individual parts *and* the original token are retained so that exact-match
+    and subword-match queries both work.
+
+    Example:
+        "Zustellhindernis" -> ["zustellhindernis"]   (single part, no expansion)
+        "Paket-Annahme"    -> ["paket", "annahme", "paket-annahme"]
+    """
+    tokens = text.lower().split()
+    expanded = []
+    for t in tokens:
+        parts = re.findall(r'[a-zäöüß]+', t)
+        expanded.extend(parts)
+        if len(parts) > 1:
+            expanded.append(t)
+    return expanded
+
 @st.cache_resource
 def build_bm25_index():
     """Builds a BM25 index from AEB code descriptions."""
     corpus = []
     for code in CODES:
         text = f"{code[1]} {code[2]}"
-        tokens = text.lower().split()
+        tokens = tokenize_for_bm25(text)
         corpus.append(tokens)
     return BM25Okapi(corpus)
 
 def get_bm25_scores(bm25_index, query_text):
     """Computes BM25 scores for a query against all codes."""
-    query_tokens = query_text.lower().split()
+    query_tokens = tokenize_for_bm25(query_text)
     scores = bm25_index.get_scores(query_tokens)
     return scores
 
@@ -409,7 +431,7 @@ def run_mapping_step4(client, df, model_name, threshold: float = 0.60, progress_
             for idx in range(len(combined_scores)):
                 code_keywords = extract_keywords_from_code(CODES[idx])
                 keyword_boost = get_keyword_boost(raw_input_texts_for_ce[i], code_keywords)
-                combined_scores[idx] += keyword_boost
+                combined_scores[idx] *= (1 + keyword_boost)
 
         top_k_idx = np.argsort(combined_scores)[-top_k_prefilter:][::-1]
 
@@ -459,8 +481,10 @@ def run_mapping_step4(client, df, model_name, threshold: float = 0.60, progress_
 
             best_idx = reranked_indices[0]
             best_score = reranked_scores[0]
+            second_best_score = reranked_scores[1] if len(reranked_scores) > 1 else -10.0
 
-            conf = sigmoid(best_score)
+            gap = sigmoid(best_score) - sigmoid(second_best_score)
+            conf = sigmoid(best_score) * (0.5 + 0.5 * min(gap / 0.15, 1.0))
 
             # pred_codes[i] == i-th q_vec: every loop iteration appends exactly once
             pred_codes[i] = CODES[best_idx][0]
