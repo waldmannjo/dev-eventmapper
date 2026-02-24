@@ -376,14 +376,17 @@ def run_mapping_step4(client, df, model_name, threshold: float = 0.60, progress_
 
     for _, row in df.iterrows():
         parts = []
-        if "Statuscode" in df.columns: parts.append(str(row["Statuscode"]))
-        if "Reasoncode" in df.columns: parts.append(str(row["Reasoncode"]))
-        parts.append(str(row["Beschreibung"]))
+        if "Statuscode" in df.columns:
+            parts.append(f"Status code: {row['Statuscode']}")
+        if "Reasoncode" in df.columns:
+            parts.append(f"Reason code: {row['Reasoncode']}")
+        parts.append(f"Description: {row['Beschreibung']}")
 
-        combined_text = " ".join(parts)
+        combined_text = ". ".join(parts)
         normalized_text = normalize_input(combined_text)
 
-        input_texts.append(f"Beschreibung eines Sendungsstatus vom Transportdienstleister: {normalized_text}")
+        # NOTE: Changing this template requires deleting the embedding cache
+        input_texts.append(f"Carrier shipment event: {normalized_text}")
         raw_input_texts_for_ce.append(normalized_text)
 
     q_vecs = embed_texts(client, input_texts)
