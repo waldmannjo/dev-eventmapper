@@ -173,7 +173,9 @@ def _compute_history_cache_hash():
     if not os.path.exists(HISTORY_FILE):
         return None
     stat = os.stat(HISTORY_FILE)
-    key = f"{EMB_MODEL}:{EMB_DIMENSIONS}:{stat.st_mtime}:{stat.st_size}"
+    # HIST_FORMAT_VERSION must be bumped whenever the history embedding format changes
+    HIST_FORMAT_VERSION = "v2-carrier-prefix"
+    key = f"{EMB_MODEL}:{EMB_DIMENSIONS}:{HIST_FORMAT_VERSION}:{stat.st_mtime}:{stat.st_size}"
     return hashlib.sha256(key.encode()).hexdigest()
 
 @st.cache_resource
@@ -208,7 +210,10 @@ def load_history_examples(_client):
         if df_hist.empty:
             return None, None
 
-        hist_texts = df_hist['Description'].astype(str).tolist()
+        hist_texts = [
+            f"Carrier shipment event: Description: {normalize_input(str(desc))}"
+            for desc in df_hist['Description']
+        ]
         hist_vecs = embed_texts(_client, hist_texts, batch_size=500)
 
         # Save to disk cache
