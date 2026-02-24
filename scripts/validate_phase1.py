@@ -115,7 +115,7 @@ def run_validation(client, val_df, model_name="gpt-4o-mini"):
     print("\n" + "="*60)
     print("TOP CONFUSED PAIRS (off-diagonal confusion matrix)")
     print("="*60)
-    all_codes = sorted(set(list(y_true) + list(y_pred)))
+    all_codes = sorted(c for c in set(list(y_true) + list(y_pred)) if c is not None)
     cm = confusion_matrix(y_true, y_pred, labels=all_codes)
 
     # Extract off-diagonal entries as (true_label, pred_label, count) tuples
@@ -144,7 +144,8 @@ def run_validation(client, val_df, model_name="gpt-4o-mini"):
     print("="*60)
 
     # Build a combined frame: original descriptions + predictions + ground truth
-    # val_df was reset_index'd into val_input, so positions align with result_df
+    # val_descriptions is reset to 0-based index here; result_df preserves val_input's
+    # 0-based index. Both align positionally with y_true/y_pred numpy arrays.
     val_descriptions = val_df['Description'].reset_index(drop=True)
 
     for true_label, pred_label, count in top_pairs[:10]:
