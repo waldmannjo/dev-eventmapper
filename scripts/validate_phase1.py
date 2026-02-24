@@ -6,7 +6,7 @@ Compares old vs. new mapping pipeline on validation set.
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, classification_report
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 import sys
 import os
 
@@ -15,6 +15,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 from backend.mapper import run_mapping_step4
 from openai import OpenAI
+from codes import CODES
 
 def load_validation_data():
     """Load and split historical data into train/validation."""
@@ -98,6 +99,74 @@ def run_validation(client, val_df, model_name="gpt-4o-mini"):
 
     print("\nDetailed Classification Report:")
     print(classification_report(y_true, y_pred, zero_division=0))
+
+    # --- Per-stage accuracy breakdown ---
+    print("\n" + "="*60)
+    print("PER-STAGE ACCURACY BREAKDOWN")
+    print("="*60)
+    for stage in ['history-knn', 'emb+ce', 'llm-batch']:
+        mask = result_df['source'] == stage
+        if mask.any():
+            stage_acc = accuracy_score(y_true[mask], y_pred[mask])
+            print(f"  {stage}: {stage_acc:.2%} (n={mask.sum()})")
+        else:
+            print(f"  {stage}: no predictions (n=0)")
+
+    # --- Confusion matrix: top confused pairs ---
+    print("\n" + "="*60)
+    print("TOP CONFUSED PAIRS (off-diagonal confusion matrix)")
+    print("="*60)
+    all_codes = sorted(set(list(y_true) + list(y_pred)))
+    cm = confusion_matrix(y_true, y_pred, labels=all_codes)
+
+    # Extract off-diagonal entries as (true_label, pred_label, count) tuples
+    confusion_pairs = []
+    for i, true_label in enumerate(all_codes):
+        for j, pred_label in enumerate(all_codes):
+            if i != j and cm[i, j] > 0:
+                confusion_pairs.append((true_label, pred_label, cm[i, j]))
+
+    # Sort by count descending, take top 15
+    confusion_pairs.sort(key=lambda x: x[2], reverse=True)
+    top_n = 15
+    top_pairs = confusion_pairs[:top_n]
+
+    if top_pairs:
+        print(f"\n{'True':>8}  {'Predicted':>10}  {'Count':>6}")
+        print("-" * 32)
+        for true_label, pred_label, count in top_pairs:
+            print(f"  {true_label:>6}  ->  {pred_label:<10}  {count:>5}")
+    else:
+        print("  No confusion pairs found (perfect accuracy or empty result).")
+
+    # --- Error examples per confused pair ---
+    print("\n" + "="*60)
+    print("ERROR EXAMPLES PER CONFUSED PAIR (top pairs, up to 3 examples each)")
+    print("="*60)
+
+    # Build a combined frame: original descriptions + predictions + ground truth
+    # val_df was reset_index'd into val_input, so positions align with result_df
+    val_descriptions = val_df['Description'].reset_index(drop=True)
+
+    for true_label, pred_label, count in top_pairs[:10]:
+        error_mask = (
+            (np.array(y_true) == true_label) &
+            (np.array(y_pred) == pred_label)
+        )
+        error_indices = np.where(error_mask)[0]
+        print(f"\n  True={true_label} -> Predicted={pred_label}  ({count} errors)")
+        example_limit = min(3, len(error_indices))
+        for k in range(example_limit):
+            idx = error_indices[k]
+            desc = val_descriptions.iloc[idx] if idx < len(val_descriptions) else "<unavailable>"
+            conf = conf_scores[idx]
+            src = result_df['source'].iloc[idx]
+            # Truncate long descriptions for readability
+            desc_str = str(desc)
+            if len(desc_str) > 120:
+                desc_str = desc_str[:117] + "..."
+            print(f"    [{k+1}] conf={conf:.3f} src={src}")
+            print(f"         desc: {desc_str}")
 
     return accuracy, result_df
 
