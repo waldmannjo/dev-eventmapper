@@ -138,6 +138,27 @@ class TestScoreGapConfidence:
         assert conf > conf_zero
         assert conf < conf_full
 
+    def test_sigmoid_is_mathematically_correct(self):
+        """Verify that sigmoid used in mapper produces expected values."""
+        from backend.mapper import sigmoid
+        # sigmoid(0) should be 0.5
+        assert abs(sigmoid(0) - 0.5) < 1e-6
+        # Large positive should be close to 1
+        assert sigmoid(10) > 0.99
+        # Large negative should be close to 0
+        assert sigmoid(-10) < 0.01
+
+    def test_gap_formula_math(self):
+        """Verify the gap confidence formula contracts."""
+        from backend.mapper import sigmoid
+        import math
+        # With zero gap, conf = sigmoid(score) * 0.5
+        best = 2.0
+        second = 2.0  # equal scores → zero gap
+        gap = max(sigmoid(best) - sigmoid(second), 0.0)
+        conf = sigmoid(best) * (0.5 + 0.5 * min(gap / 0.15, 1.0))
+        assert abs(conf - sigmoid(best) * 0.5) < 1e-6
+
 
 # ---------------------------------------------------------------------------
 # Change B: Multiplicative keyword boost

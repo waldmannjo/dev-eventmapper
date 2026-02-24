@@ -93,6 +93,7 @@ def tokenize_for_bm25(text):
             expanded.append(t)
     return expanded
 
+# NOTE: Changing tokenize_for_bm25 requires a server restart to invalidate this cache
 @st.cache_resource
 def build_bm25_index():
     """Builds a BM25 index from AEB code descriptions."""
@@ -483,7 +484,7 @@ def run_mapping_step4(client, df, model_name, threshold: float = 0.60, progress_
             best_score = reranked_scores[0]
             second_best_score = reranked_scores[1] if len(reranked_scores) > 1 else -10.0
 
-            gap = sigmoid(best_score) - sigmoid(second_best_score)
+            gap = max(sigmoid(best_score) - sigmoid(second_best_score), 0.0)
             conf = sigmoid(best_score) * (0.5 + 0.5 * min(gap / 0.15, 1.0))
 
             # pred_codes[i] == i-th q_vec: every loop iteration appends exactly once
