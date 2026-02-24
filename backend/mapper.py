@@ -251,6 +251,27 @@ def get_similar_historical_entries(query_vec, df_hist, hist_vecs, top_k=3):
         
     return examples
 
+def find_contrastive_example(query_vec, df_hist, hist_vecs, top_candidate_code, top_k=20):
+    """
+    Find a historical example that is similar to the query but mapped to a different code.
+    Returns a dict {'input': str, 'mapped_code': str} or None.
+    """
+    if df_hist is None or hist_vecs is None or len(hist_vecs) == 0:
+        return None
+
+    sims = cosine_similarity(query_vec.reshape(1, -1), hist_vecs).ravel()
+    top_indices = np.argsort(sims)[-top_k:][::-1]
+
+    for idx in top_indices:
+        row = df_hist.iloc[idx]
+        if row['AEB Event Code'] != top_candidate_code:
+            return {
+                "input": row['Description'],
+                "mapped_code": row['AEB Event Code'],
+            }
+    return None
+
+
 async def classify_single_row(async_client, row_text, candidates, hist_str, model_name, semaphore):
     async with semaphore:
         cand_str = "\n".join([
@@ -411,15 +432,26 @@ def run_mapping_step4(client, df, model_name, threshold: float = 0.60, progress_
             prog = 0.1 + (0.3 * (i / total_items))
             progress_callback(prog, f"Vorfilterung Zeile {i+1}/{total_items}")
 
-        # --- A. k-NN Check (History) ---
+        # --- A. k-NN Check (History) with top-5 weighted voting ---
         knn_match_found = False
         if df_hist is not None and hist_vecs is not None:
-            hist_matches = get_similar_historical_entries(v, df_hist, hist_vecs, top_k=1)
-            if hist_matches:
-                best_hist = hist_matches[0]
-                if best_hist['score'] >= knn_threshold:
-                    pred_codes.append(best_hist['mapped_code'])
-                    conf_scores.append(float(best_hist['score']))
+            knn_voting_k = cfg.get("knn_voting_k", 5)
+            knn_consensus_threshold = cfg.get("knn_consensus_threshold", 0.60)
+            hist_matches = get_similar_historical_entries(v, df_hist, hist_vecs, top_k=knn_voting_k)
+            if hist_matches and hist_matches[0]['score'] >= knn_threshold:
+                # Weighted voting: sum similarity scores per code
+                votes = {}
+                for match in hist_matches:
+                    code = match['mapped_code']
+                    votes[code] = votes.get(code, 0.0) + match['score']
+
+                best_code = max(votes, key=votes.get)
+                total_weight = sum(votes.values())
+                consensus = votes[best_code] / total_weight
+
+                if consensus >= knn_consensus_threshold:
+                    pred_codes.append(best_code)
+                    conf_scores.append(float(consensus))
                     sources.append("history-knn")
                     top_candidates_list.append([])
                     knn_match_found = True
@@ -539,6 +571,17 @@ def run_mapping_step4(client, df, model_name, threshold: float = 0.60, progress_
             if hist_examples:
                 hist_lines = [f"- Input '{ex['input']}' wurde gemappt auf '{ex['mapped_code']}'" for ex in hist_examples]
                 hist_str = "\nHistorische Beispiele (zur Orientierung):\n" + "\n".join(hist_lines)
+
+            # Contrastive example: similar input mapped to a different code
+            top_candidate_code = candidates[0]['code'] if candidates else None
+            if top_candidate_code:
+                contrastive = find_contrastive_example(current_vec, df_hist, hist_vecs, top_candidate_code)
+                if contrastive:
+                    hist_str += (
+                        f"\n\nAchtung — ähnlicher Input mit anderem Ergebnis:"
+                        f"\n- Input '{contrastive['input']}' wurde auf '{contrastive['mapped_code']}'"
+                        f" gemappt (NICHT auf {top_candidate_code})"
+                    )
             
             tasks_data.append({
                 'index': idx, # Store original DF index

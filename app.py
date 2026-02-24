@@ -45,6 +45,8 @@ MAPPER_CONFIG = {
     "use_keyword_boost": True,
     "embedding_dimensions": 1024,
     "knn_threshold": 0.93,
+    "knn_voting_k": 5,
+    "knn_consensus_threshold": 0.60,
     "confidence_threshold": 0.60,
     "top_k_prefilter": 10,
     "embedding_weight": 0.7,
