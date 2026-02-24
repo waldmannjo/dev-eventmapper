@@ -57,9 +57,18 @@ def normalize_input(text):
     # least one digit — avoids stripping plain German words like 'sortierzentrum'
     text = re.sub(r'\b(?=[A-Z0-9]*\d)[A-Z0-9]{10,}\b', '', text, flags=re.IGNORECASE)
     text = text.lower()
-    # Apply synonym / abbreviation mapping
-    for abbrev, expansion in CONTENT_NORMALIZATION.items():
-        text = text.replace(abbrev, expansion)
+    # Apply synonym / abbreviation mapping using word-boundary regex to prevent
+    # substring corruption (e.g. "avis" inside "aviso", "lager" inside "Verlagerung").
+    # Longer keys are tried first so e.g. "aviso" matches before "avis".
+    for abbrev in sorted(CONTENT_NORMALIZATION, key=len, reverse=True):
+        expansion = CONTENT_NORMALIZATION[abbrev]
+        # Abbreviations ending in '.' can't use \b (period is not a word char),
+        # so use a negative lookbehind to avoid matching mid-word.
+        if abbrev.endswith('.'):
+            pattern = r'(?<!\w)' + re.escape(abbrev)
+        else:
+            pattern = r'\b' + re.escape(abbrev) + r'\b'
+        text = re.sub(pattern, expansion, text)
     return text.strip()
 
 @st.cache_resource

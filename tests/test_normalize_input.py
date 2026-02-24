@@ -137,10 +137,26 @@ def test_synonym_avis():
 
 
 def test_synonym_aviso():
-    """normalize_input normalizes 'aviso' to 'notification'."""
+    """normalize_input normalizes 'aviso' to 'notification' without producing 'notificationo'."""
     result = normalize_input("Aviso an Empfänger")
     assert "notification" in result
     assert "aviso" not in result
+    # Guard against the substring-replacement bug: "avis"->"notification" inside
+    # "aviso" would yield "notificationo" instead of "notification".
+    assert "notificationo" not in result
+    assert result.startswith("notification an")
+
+
+def test_compound_word_not_corrupted():
+    """German compound words containing synonym substrings must not be corrupted."""
+    result = normalize_input("Verlagerung ins Depot")
+    # The compound word "Verlagerung" contains "lager" but must be preserved intact.
+    assert "verlagerung" in result
+    # The buggy plain str.replace() would turn it into "verfacilityung".
+    assert "verfacilityung" not in result
+    # Standalone "depot" IS a full word and should be replaced.
+    assert "facility" in result
+    assert "depot" not in result
 
 
 def test_combined_normalization():
