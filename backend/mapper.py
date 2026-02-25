@@ -574,6 +574,12 @@ def run_mapping_step4(client, df, model_name, threshold: float = 0.60, progress_
             pos_idx = df.index.get_loc(idx)
             candidates = top_candidates_list[pos_idx]
 
+            # For unknown carriers the CE has no signal — pass all 31 codes so the LLM
+            # isn't forced to choose from a bad shortlist.
+            CE_NO_SIGNAL_THRESHOLD = 0.20
+            if not candidates or candidates[0]['score'] < CE_NO_SIGNAL_THRESHOLD:
+                candidates = [{"code": c[0], "desc": c[1], "score": 0.0} for c in CODES]
+
             # Few-Shot Context
             current_vec = q_vecs[pos_idx]
             hist_examples = get_similar_historical_entries(current_vec, df_hist, hist_vecs, top_k=3)

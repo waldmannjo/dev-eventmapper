@@ -23,8 +23,9 @@ import streamlit as st
 import pandas as pd
 from openai import OpenAI
 import backend as logic  # <-- Das ist unser neues Modul
+from backend.mapper import HISTORY_FILE, CACHE_EMBEDDINGS, CACHE_DF, CACHE_META
 
-VERSION = "0.3.0"
+VERSION = "0.4.0"
 
 st.set_page_config(page_title="Eventmapper", layout="wide")
 st.title("Eventmapper")
@@ -95,6 +96,12 @@ with st.sidebar:
     st.caption(f"Eventmapper v{VERSION}")
 
     CHANGELOG = {
+        "0.4.0": [
+            "Save to History button — append confirmed LLM mappings to history for future k-NN use",
+            "k-NN threshold slider — tune history match strictness per document (0.80–0.99)",
+            "Full 31-code fallback for unknown carriers when cross-encoder has no signal",
+            "Expanded AEB code keywords (IOD, CAS, ERR, HIN, WRN) with international carrier terms",
+        ],
         "0.3.0": [
             "Responses API migration (OpenAI)",
             "Batched cross-encoder predictions",
@@ -138,6 +145,7 @@ if "analysis_res" not in st.session_state: st.session_state.analysis_res = {}
 if "extraction_res" not in st.session_state: st.session_state.extraction_res = {}
 if "df_merged" not in st.session_state: st.session_state.df_merged = pd.DataFrame()
 if "df_final" not in st.session_state: st.session_state.df_final = pd.DataFrame()
+if "show_save_confirm" not in st.session_state: st.session_state.show_save_confirm = False
 
 # =========================================================
 # SCHRITT 0: UPLOAD
@@ -369,11 +377,27 @@ if st.session_state.current_step >= 3:
                 )
                 
                 threshold = st.slider(
-                    "LLM-Schwelle (Confidence Threshold)", 
+                    "LLM-Schwelle (Confidence Threshold)",
                     min_value=0.0, max_value=1.0, value=0.6, step=0.05,
                     help="Werte unter dieser Schwelle werden vom LLM geprüft. Höher = mehr LLM-Aufrufe (teurer, genauer)."
                 )
-                
+                st.caption(
+                    "Zeilen, bei denen das Modell unsicher ist (Confidence < Schwelle), werden zur Sicherheit vom LLM geprüft. "
+                    "Höherer Wert = mehr LLM-Aufrufe (teurer, aber genauer). Niedrigerer Wert = schneller & günstiger, aber mehr Fehler."
+                )
+
+                knn_threshold = st.slider(
+                    "k-NN Schwelle (History Match)",
+                    min_value=0.80, max_value=0.99,
+                    value=float(MAPPER_CONFIG["knn_threshold"]),
+                    step=0.01,
+                    help="Geringere Schwelle = mehr History-Treffer, höheres Risiko falscher Matches. Standard: 0.93."
+                )
+                st.caption(
+                    "Wie ähnlich muss ein Event-Text zu einem historischen Mapping sein, damit er direkt übernommen wird (ohne LLM). "
+                    "Höherer Wert = strenger, nur sehr genaue Treffer. Niedrigerer Wert = mehr Treffer aus der History, aber höheres Risiko falscher Übernahmen."
+                )
+
                 if st.button("Weiter zu Schritt 4: KI Mapping starten", type="primary"):
                     prog_bar = st.progress(0)
                     status_text = st.empty()
@@ -388,7 +412,7 @@ if st.session_state.current_step >= 3:
                         model_name=model_step4,
                         threshold=threshold,
                         progress_callback=update_progress,
-                        config=MAPPER_CONFIG
+                        config={**MAPPER_CONFIG, "knn_threshold": knn_threshold}
                     )
                     st.session_state.df_final = df_fin
                     st.session_state.current_step = 4
@@ -405,3 +429,56 @@ if st.session_state.current_step >= 4:
     
     csv_data = st.session_state.df_final.to_csv(index=False, sep=";").encode('utf-8')
     st.download_button("💾 Mapping herunterladen", csv_data, "final_mapping.csv", "text/csv")
+
+    # --- Save to History ---
+    if not st.session_state.df_final.empty and "source" in st.session_state.df_final.columns:
+        SAVE_CONF_THRESHOLD = 0.70
+        llm_mask = (
+            (st.session_state.df_final["source"] == "llm-batch") &
+            (st.session_state.df_final["confidence"] >= SAVE_CONF_THRESHOLD)
+        )
+        df_save_candidates = st.session_state.df_final[llm_mask]
+
+        if len(df_save_candidates) > 0:
+            st.markdown("---")
+            st.markdown(
+                f"**{len(df_save_candidates)} LLM-Mappings** mit Confidence ≥ {SAVE_CONF_THRESHOLD:.0%} "
+                "können zur History gespeichert werden (verbessert zukünftige k-NN Treffer)."
+            )
+
+            if not st.session_state.show_save_confirm:
+                if st.button("📥 In History speichern"):
+                    st.session_state.show_save_confirm = True
+                    st.rerun()
+            else:
+                preview_cols = [c for c in ["Beschreibung", "final_code", "confidence"] if c in df_save_candidates.columns]
+                st.caption("Vorschau (max. 10 Zeilen):")
+                st.dataframe(df_save_candidates[preview_cols].head(10))
+                st.caption(f"Gesamt: {len(df_save_candidates)} Zeilen werden an die History angehängt.")
+
+                col_yes, col_no = st.columns([1, 1])
+                with col_yes:
+                    if st.button("✅ Bestätigen und speichern", type="primary"):
+                        try:
+                            desc_col = "Beschreibung" if "Beschreibung" in df_save_candidates.columns else df_save_candidates.columns[0]
+                            rows_to_add = pd.DataFrame({
+                                "Description": df_save_candidates[desc_col].values,
+                                "AEB Event Code": df_save_candidates["final_code"].values,
+                            })
+                            df_hist_existing = pd.read_excel(HISTORY_FILE)
+                            df_hist_updated = pd.concat([df_hist_existing, rows_to_add], ignore_index=True)
+                            df_hist_updated.to_excel(HISTORY_FILE, index=False)
+
+                            for cf in [CACHE_EMBEDDINGS, CACHE_DF, CACHE_META]:
+                                if os.path.exists(cf):
+                                    os.remove(cf)
+                            st.cache_resource.clear()
+
+                            st.session_state.show_save_confirm = False
+                            st.success(f"✅ {len(rows_to_add)} Zeilen gespeichert. Cache wird beim nächsten Run neu generiert.")
+                        except Exception as e:
+                            st.error(f"Fehler beim Speichern: {e}")
+                with col_no:
+                    if st.button("❌ Abbrechen"):
+                        st.session_state.show_save_confirm = False
+                        st.rerun()

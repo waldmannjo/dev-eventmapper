@@ -20,7 +20,9 @@ CODES = [
     ("CAS", "Consignee absence / Empfänger nicht angetroffen",
      "Delivery attempt failed because recipient was not available. "
      "Zustellversuch erfolglos, da Empfänger nicht angetroffen wurde. "
-     "Keywords: consignee absent, not at home, card left, closed, zustellhindernis, empfänger nicht da, benachrichtigt, benachrichtigungskarte, firma geschlossen, niemand angetroffen."),
+     "Keywords: consignee absent, not at home, card left, closed, recipient not available, failed attempt, "
+     "nobody present, absent, delivery attempt failed, no one home, not available, attempted delivery, "
+     "zustellhindernis, empfänger nicht da, benachrichtigt, benachrichtigungskarte, firma geschlossen, niemand angetroffen."),
 
     ("CND", "Delivery cancelled / Storniert",
      "The delivery or shipment has been cancelled. "
@@ -50,7 +52,9 @@ CODES = [
     ("ERR", "Error / Fehler",
      "General error in processing or data. "
      "Allgemeiner Fehler bei der Verarbeitung oder in den Daten. "
-     "Keywords: error, status error, interface error, unknown event, fehler, störung, verarbeitungsfehler, schnittstellenfehler, ungültiger status."),
+     "Keywords: error, status error, interface error, unknown event, exception, shipment exception, "
+     "processing error, system error, data error, invalid event, unhandled status, technical issue, "
+     "fehler, störung, verarbeitungsfehler, schnittstellenfehler, ungültiger status."),
 
     ("ETA", "Estimated time / Avisierung",
      "Expected arrival or delivery date provided. "
@@ -75,7 +79,9 @@ CODES = [
     ("HIN", "HUB in / Hub Eingang",
      "Arrival at carrier hub or sorting center. "
      "Eingang im Umschlaglager (Hub) oder Sortierzentrum. "
-     "Keywords: hub in, arrival at hub, sorting center, inbound scan, hub eingang, sortierung, umschlagspunkt, eingang depot."),
+     "Keywords: hub in, arrival at hub, sorting center, inbound scan, arrived at facility, received at hub, "
+     "arrived at terminal, received at sorting center, facility arrival, depot arrival, inbound at hub, "
+     "hub eingang, sortierung, umschlagspunkt, eingang depot."),
 
     ("HOU", "HUB out / Hub Ausgang",
      "Departure from carrier hub or sorting center. "
@@ -95,7 +101,9 @@ CODES = [
     ("IOD", "Delivered / Zugestellt",
      "Shipment successfully delivered to consignee. "
      "Sendung erfolgreich zugestellt. "
-     "Keywords: delivered, pod, signed by, left at door, zugestellt, empfangen, unterschrift, abstellgenehmigung, abgestellt, erfolgreiche zustellung."),
+     "Keywords: delivered, pod, signed by, left at door, proof of delivery, consignee signed, "
+     "delivered to recipient, delivery confirmed, received by, delivery complete, successfully delivered, "
+     "zugestellt, empfangen, unterschrift, abstellgenehmigung, abgestellt, erfolgreiche zustellung."),
 
     ("ITR", "In transit / Unterwegs",
      "Shipment is in transit between facilities. "
@@ -160,5 +168,7 @@ CODES = [
     ("WRN", "Warning / Warnung",
      "Warning or potential issue. "
      "Warnung oder potenzielles Problem. "
-     "Keywords: warning, hold, clarification, delay risk, warnung, klärung, hinweis, achtung, prüfung."),
+     "Keywords: warning, hold, clarification, delay risk, unable to collect, pickup failed, "
+     "collection refused, capacity exceeded, attention required, action needed, review required, "
+     "warnung, klärung, hinweis, achtung, prüfung."),
 ]
