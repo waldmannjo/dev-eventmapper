@@ -502,16 +502,22 @@ def run_mapping_step4(client, df, model_name, threshold: float = 0.60, progress_
 
     # Phase 2: Batched cross-encoder prediction
     if all_ce_pairs:
-        if progress_callback: progress_callback(0.45, f"Cross-Encoder Re-Ranking ({len(all_ce_pairs)} Paare)...")
         # Batch CE predictions in chunks to avoid OOM/segfault on large inputs
         CE_BATCH_SIZE = 2048
-        if len(all_ce_pairs) <= CE_BATCH_SIZE:
+        total_pairs = len(all_ce_pairs)
+        n_chunks = max(1, (total_pairs + CE_BATCH_SIZE - 1) // CE_BATCH_SIZE)
+        if progress_callback:
+            progress_callback(0.45, f"Cross-Encoder Re-Ranking ({total_pairs} Paare, {n_chunks} Batches)...")
+        if total_pairs <= CE_BATCH_SIZE:
             all_ce_scores = ce_model.predict(all_ce_pairs)
         else:
             score_chunks = []
-            for j in range(0, len(all_ce_pairs), CE_BATCH_SIZE):
+            for chunk_idx, j in enumerate(range(0, total_pairs, CE_BATCH_SIZE)):
                 chunk = all_ce_pairs[j:j + CE_BATCH_SIZE]
                 score_chunks.append(ce_model.predict(chunk))
+                if progress_callback:
+                    prog = 0.45 + 0.20 * ((chunk_idx + 1) / n_chunks)
+                    progress_callback(prog, f"Cross-Encoder Re-Ranking ({total_pairs} Paare) — Batch {chunk_idx + 1}/{n_chunks}...")
             all_ce_scores = np.concatenate(score_chunks)
 
         # Unpack batched results back to per-row scores
