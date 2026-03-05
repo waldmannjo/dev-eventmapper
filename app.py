@@ -267,8 +267,8 @@ if st.session_state.current_step >= 2 and st.session_state.extraction_res:
     st.info(f"Erkannter Modus: **{mode}**")
     
     if mode == "separate":
-        # Initialize editable working copies on first entry (or after going back)
-        if st.session_state.df_status_edit.empty:
+        # Initialize editable working copies on first entry
+        if "_select" not in st.session_state.df_status_edit.columns:
             df_s_raw = logic.preview_csv_string(st.session_state.extraction_res.get("status_csv"))
             df_r_raw = logic.preview_csv_string(st.session_state.extraction_res.get("reasons_csv"))
             df_s_raw.insert(0, "_select", False)
