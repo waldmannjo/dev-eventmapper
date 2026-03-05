@@ -291,6 +291,9 @@ if st.session_state.current_step >= 2 and st.session_state.extraction_res:
             )
             if st.button("Verschieben zu Reason \u2192"):
                 to_move = edited_status[edited_status["_select"]].drop(columns=["_select"])
+                if to_move.empty:
+                    st.warning("Keine Zeilen ausgewählt.")
+                    st.stop()
                 remaining = edited_status[~edited_status["_select"]].drop(columns=["_select"])
                 if remaining.empty:
                     st.error("Status-Tabelle darf nicht leer sein.")
@@ -318,6 +321,9 @@ if st.session_state.current_step >= 2 and st.session_state.extraction_res:
             )
             if st.button("\u2190 Verschieben zu Status"):
                 to_move = edited_reasons[edited_reasons["_select"]].drop(columns=["_select"])
+                if to_move.empty:
+                    st.warning("Keine Zeilen ausgewählt.")
+                    st.stop()
                 remaining = edited_reasons[~edited_reasons["_select"]].drop(columns=["_select"])
                 remaining.insert(0, "_select", False)
                 to_move_with_sel = to_move.copy()
