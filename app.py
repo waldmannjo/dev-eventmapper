@@ -277,14 +277,57 @@ if st.session_state.current_step >= 2 and st.session_state.extraction_res:
             st.session_state.df_reasons_edit = df_r_raw
 
         col_a, col_b = st.columns(2)
+
         with col_a:
-            st.caption("Statuscodes (Vorschau)")
-            df_s = logic.preview_csv_string(st.session_state.extraction_res.get("status_csv"))
-            st.dataframe(df_s, height=200)
+            st.caption(f"Statuscodes ({len(st.session_state.df_status_edit)} Zeilen)")
+            edited_status = st.data_editor(
+                st.session_state.df_status_edit,
+                key="status_editor",
+                use_container_width=True,
+                height=250,
+                column_config={
+                    "_select": st.column_config.CheckboxColumn("Verschieben", default=False)
+                },
+            )
+            if st.button("Verschieben zu Reason \u2192"):
+                to_move = edited_status[edited_status["_select"]].drop(columns=["_select"])
+                remaining = edited_status[~edited_status["_select"]].drop(columns=["_select"])
+                if remaining.empty:
+                    st.error("Status-Tabelle darf nicht leer sein.")
+                else:
+                    remaining.insert(0, "_select", False)
+                    to_move_with_sel = to_move.copy()
+                    to_move_with_sel.insert(0, "_select", False)
+                    current_reasons = st.session_state.df_reasons_edit.copy()
+                    st.session_state.df_status_edit = remaining.reset_index(drop=True)
+                    st.session_state.df_reasons_edit = pd.concat(
+                        [current_reasons, to_move_with_sel], ignore_index=True
+                    )
+                    st.rerun()
+
         with col_b:
-            st.caption("Reasoncodes (Vorschau)")
-            df_r = logic.preview_csv_string(st.session_state.extraction_res.get("reasons_csv"))
-            st.dataframe(df_r, height=200)
+            st.caption(f"Reasoncodes ({len(st.session_state.df_reasons_edit)} Zeilen)")
+            edited_reasons = st.data_editor(
+                st.session_state.df_reasons_edit,
+                key="reasons_editor",
+                use_container_width=True,
+                height=250,
+                column_config={
+                    "_select": st.column_config.CheckboxColumn("Verschieben", default=False)
+                },
+            )
+            if st.button("\u2190 Verschieben zu Status"):
+                to_move = edited_reasons[edited_reasons["_select"]].drop(columns=["_select"])
+                remaining = edited_reasons[~edited_reasons["_select"]].drop(columns=["_select"])
+                remaining.insert(0, "_select", False)
+                to_move_with_sel = to_move.copy()
+                to_move_with_sel.insert(0, "_select", False)
+                current_status = st.session_state.df_status_edit.copy()
+                st.session_state.df_reasons_edit = remaining.reset_index(drop=True)
+                st.session_state.df_status_edit = pd.concat(
+                    [current_status, to_move_with_sel], ignore_index=True
+                )
+                st.rerun()
     else:
         st.caption("Kombinierte Liste (Vorschau)")
         df_c = logic.preview_csv_string(st.session_state.extraction_res.get("combined_csv"))
