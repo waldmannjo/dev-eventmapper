@@ -350,7 +350,17 @@ if st.session_state.current_step >= 2 and st.session_state.extraction_res:
         with col_next:
             if st.button("Weiter zu Schritt 3: Merge & Formatierung"):
                 with st.spinner("Führe Merge durch..."):
-                    df_m = logic.merge_data_step3(st.session_state.extraction_res)
+                    ext_res = dict(st.session_state.extraction_res)
+                    if ext_res.get("mode") == "separate":
+                        status_clean = st.session_state.df_status_edit.drop(
+                            columns=["_select"], errors="ignore"
+                        )
+                        reasons_clean = st.session_state.df_reasons_edit.drop(
+                            columns=["_select"], errors="ignore"
+                        )
+                        ext_res["status_csv"] = status_clean.to_csv(index=False, sep=";")
+                        ext_res["reasons_csv"] = reasons_clean.to_csv(index=False, sep=";")
+                    df_m = logic.merge_data_step3(ext_res)
                     st.session_state.df_merged = df_m.copy()
                     st.session_state.current_step = 3
                     st.rerun()

@@ -13,10 +13,13 @@ from urllib3.exceptions import InsecureRequestWarning
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 import ssl
 ssl._create_default_https_context = ssl._create_unverified_context
-from huggingface_hub import configure_http_backend
-_session = requests.Session()
-_session.verify = False
-configure_http_backend(backend_factory=lambda: _session)
+try:
+    from huggingface_hub import configure_http_backend
+    _session = requests.Session()
+    _session.verify = False
+    configure_http_backend(backend_factory=lambda: _session)
+except ImportError:
+    pass  # configure_http_backend removed in huggingface_hub >= 1.x
 
 @pytest.fixture
 def sample_df():
