@@ -267,6 +267,15 @@ if st.session_state.current_step >= 2 and st.session_state.extraction_res:
     st.info(f"Erkannter Modus: **{mode}**")
     
     if mode == "separate":
+        # Initialize editable working copies on first entry (or after going back)
+        if st.session_state.df_status_edit.empty:
+            df_s_raw = logic.preview_csv_string(st.session_state.extraction_res.get("status_csv"))
+            df_r_raw = logic.preview_csv_string(st.session_state.extraction_res.get("reasons_csv"))
+            df_s_raw.insert(0, "_select", False)
+            df_r_raw.insert(0, "_select", False)
+            st.session_state.df_status_edit = df_s_raw
+            st.session_state.df_reasons_edit = df_r_raw
+
         col_a, col_b = st.columns(2)
         with col_a:
             st.caption("Statuscodes (Vorschau)")
