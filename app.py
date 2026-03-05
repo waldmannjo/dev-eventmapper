@@ -343,6 +343,8 @@ if st.session_state.current_step >= 2 and st.session_state.extraction_res:
         col_back, col_next = st.columns([1, 3])
         with col_back:
             if st.button("🔙 Auswahl ändern"):
+                st.session_state.df_status_edit = pd.DataFrame()
+                st.session_state.df_reasons_edit = pd.DataFrame()
                 st.session_state.current_step = 1
                 st.rerun()
         with col_next:
