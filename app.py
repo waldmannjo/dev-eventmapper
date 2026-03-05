@@ -146,6 +146,8 @@ if "extraction_res" not in st.session_state: st.session_state.extraction_res = {
 if "df_merged" not in st.session_state: st.session_state.df_merged = pd.DataFrame()
 if "df_final" not in st.session_state: st.session_state.df_final = pd.DataFrame()
 if "show_save_confirm" not in st.session_state: st.session_state.show_save_confirm = False
+if "df_status_edit" not in st.session_state: st.session_state.df_status_edit = pd.DataFrame()
+if "df_reasons_edit" not in st.session_state: st.session_state.df_reasons_edit = pd.DataFrame()
 
 # =========================================================
 # SCHRITT 0: UPLOAD
