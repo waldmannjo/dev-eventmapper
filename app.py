@@ -196,7 +196,7 @@ if st.session_state.current_step >= 1 and st.session_state.analysis_res:
         stat_candidates = [{"name": res["Statuscode"].get("Bezeichnung_im_Dokument", "Standard"), "description": "Automatisch erkannt"}]
 
     col1, col2 = st.columns(2)
-    
+
     # 2. UI für Statuscodes (Multiselect)
     with col1:
         st.subheader("Statuscode Quellen")
@@ -205,11 +205,18 @@ if st.session_state.current_step >= 1 and st.session_state.analysis_res:
             stat_options = [c["name"] for c in stat_candidates]
             # Standardmäßig alle auswählen
             selected_stats = st.multiselect(
-                "Welche Tabellen nutzen?", 
-                options=stat_options, 
+                "Welche Tabellen nutzen?",
+                options=stat_options,
                 default=stat_options,
                 help="Wählen Sie hier, ob Sie Tabelle 8, Tabelle 9 oder beide nutzen wollen."
             )
+            # Details der Kandidaten anzeigen
+            for c in stat_candidates:
+                with st.expander(f"📋 {c['name']}", expanded=True):
+                    if c.get("context"):
+                        st.caption(f"📍 Fundstelle: {c['context']}")
+                    if c.get("description"):
+                        st.write(c["description"])
         else:
             st.warning("Keine Status-Tabellen gefunden.")
             selected_stats = []
@@ -220,6 +227,13 @@ if st.session_state.current_step >= 1 and st.session_state.analysis_res:
         if reas_candidates:
             reas_options = [c["name"] for c in reas_candidates]
             selected_reas = st.multiselect("Welche Tabellen nutzen?", options=reas_options, default=reas_options)
+            # Details der Kandidaten anzeigen
+            for c in reas_candidates:
+                with st.expander(f"📋 {c['name']}", expanded=False):
+                    if c.get("context"):
+                        st.caption(f"📍 Fundstelle: {c['context']}")
+                    if c.get("description"):
+                        st.write(c["description"])
         else:
             st.info("Keine Reason-Codes gefunden.")
             selected_reas = []
