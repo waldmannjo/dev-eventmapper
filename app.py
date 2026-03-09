@@ -42,6 +42,35 @@ MODEL_CONFIG = {
     "gpt-4.1-2025-04-14": {"desc": "Smartest non-reasoning model", "cost": "Input: $2, Output: $8"}
 }
 
+# Pricing per 1M tokens (verified 2026-03-09 against developers.openai.com/api/docs/pricing/)
+PRICING = {
+    "gpt-5-nano-2025-08-07":  {"input": 0.05,  "output": 0.40},
+    "gpt-5-mini-2025-08-07":  {"input": 0.25,  "output": 2.00},
+    "gpt-5.1-2025-11-13":     {"input": 1.25,  "output": 10.00},
+    "gpt-4.1-2025-04-14":     {"input": 2.00,  "output": 8.00},
+    "text-embedding-3-large": {"input": 0.13,  "output": 0.00},
+}
+
+
+def _make_usage(input_tokens: int, output_tokens: int, model: str) -> dict:
+    """Compute a UsageDict from raw token counts and model name."""
+    rates = PRICING.get(model, {"input": 0.0, "output": 0.0})
+    cost = (input_tokens * rates["input"] + output_tokens * rates["output"]) / 1_000_000
+    return {
+        "input_tokens": input_tokens,
+        "output_tokens": output_tokens,
+        "cost_usd": cost,
+        "model": model,
+    }
+
+
+def _format_tokens(n: int) -> str:
+    """Format token count with 'k' suffix above 999."""
+    if n > 999:
+        return f"{n / 1000:.1f}k"
+    return str(n)
+
+
 # Mapper Configuration (Phase 1 improvements)
 MAPPER_CONFIG = {
     "use_multilingual_ce": True,

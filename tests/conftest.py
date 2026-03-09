@@ -47,6 +47,11 @@ def mock_openai_client():
     mock_response = Mock()
     mock_response.data = [mock_embedding] * 3
 
+    mock_usage = Mock()
+    mock_usage.prompt_tokens = 30
+    mock_usage.total_tokens = 30
+    mock_response.usage = mock_usage
+
     client.embeddings.create.return_value = mock_response
     return client
 
