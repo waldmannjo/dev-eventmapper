@@ -12,15 +12,15 @@ def _df_with_select(csv_str: str) -> pd.DataFrame:
 
 
 def test_init_adds_select_column():
-    csv = "Statuscode;Beschreibung\n10;Abholung\n20;Zustellung"
+    csv = "Statuscode;Description\n10;Abholung\n20;Zustellung"
     df = _df_with_select(csv)
     assert "_select" in df.columns
     assert list(df["_select"]) == [False, False]
 
 
 def test_move_selected_rows_to_other_table():
-    csv_status = "Statuscode;Beschreibung\n10;Abholung\n20;Zustellung"
-    csv_reason = "Reasoncode;Beschreibung\n01;Empf. nicht anwesend"
+    csv_status = "Statuscode;Description\n10;Abholung\n20;Zustellung"
+    csv_reason = "Reasoncode;Description\n01;Empf. nicht anwesend"
 
     df_s = _df_with_select(csv_status)
     df_r = _df_with_select(csv_reason)
@@ -43,7 +43,7 @@ def test_move_selected_rows_to_other_table():
 
 
 def test_serialize_back_to_csv():
-    csv_status = "Statuscode;Beschreibung\n10;Abholung"
+    csv_status = "Statuscode;Description\n10;Abholung"
     df_s = _df_with_select(csv_status)
 
     clean = df_s.drop(columns=["_select"], errors="ignore")
@@ -52,14 +52,14 @@ def test_serialize_back_to_csv():
     # Round-trip: re-parse and verify
     df_back = pd.read_csv(io.StringIO(result_csv), sep=";")
     assert "_select" not in df_back.columns
-    assert list(df_back.columns) == ["Statuscode", "Beschreibung"]
+    assert list(df_back.columns) == ["Statuscode", "Description"]
     assert df_back.iloc[0]["Statuscode"] == 10
 
 
 def test_move_all_status_rows_is_blocked_by_empty_check():
     """Remaining must not be empty — this is enforced in the UI by an error message.
     Verify the detection logic itself."""
-    csv_status = "Statuscode;Beschreibung\n10;Abholung"
+    csv_status = "Statuscode;Description\n10;Abholung"
     df_s = _df_with_select(csv_status)
     df_s.loc[0, "_select"] = True
 

@@ -76,7 +76,7 @@ class TestLabeledFields:
         normalize_input lowercases the combined_text, so the label will be lowercase."""
         df = pd.DataFrame({
             "Statuscode": ["42"],
-            "Beschreibung": ["Delivered to consignee"],
+            "Description": ["Delivered to consignee"],
         })
         texts = _capture_input_texts(df)
         assert len(texts) == 1
@@ -90,7 +90,7 @@ class TestLabeledFields:
         normalize_input lowercases the combined_text, so the label will be lowercase."""
         df = pd.DataFrame({
             "Reasoncode": ["03"],
-            "Beschreibung": ["Attempted delivery"],
+            "Description": ["Attempted delivery"],
         })
         texts = _capture_input_texts(df)
         assert len(texts) == 1
@@ -103,7 +103,7 @@ class TestLabeledFields:
         """'Description:' label is present even when no code columns exist.
         normalize_input lowercases the combined_text, so 'description:' will be lowercase."""
         df = pd.DataFrame({
-            "Beschreibung": ["Package at sorting centre"],
+            "Description": ["Package at sorting centre"],
         })
         texts = _capture_input_texts(df)
         assert len(texts) == 1
@@ -117,7 +117,7 @@ class TestLabeledFields:
         df = pd.DataFrame({
             "Statuscode": ["10"],
             "Reasoncode": ["A"],
-            "Beschreibung": ["Customs clearance"],
+            "Description": ["Customs clearance"],
         })
         texts = _capture_input_texts(df)
         assert "description: " in texts[0], (
@@ -130,7 +130,7 @@ class TestLabeledFields:
         df = pd.DataFrame({
             "Statuscode": ["07"],
             "Reasoncode": ["B"],
-            "Beschreibung": ["Return to sender"],
+            "Description": ["Return to sender"],
         })
         texts = _capture_input_texts(df)
         assert "status code: 07" in texts[0]
@@ -140,7 +140,7 @@ class TestLabeledFields:
     def test_statuscode_absent_when_column_missing(self):
         """'Status code:' does NOT appear when Statuscode column is absent."""
         df = pd.DataFrame({
-            "Beschreibung": ["In transit"],
+            "Description": ["In transit"],
         })
         texts = _capture_input_texts(df)
         assert "Status code:" not in texts[0], (
@@ -150,7 +150,7 @@ class TestLabeledFields:
     def test_reasoncode_absent_when_column_missing(self):
         """'Reason code:' does NOT appear when Reasoncode column is absent."""
         df = pd.DataFrame({
-            "Beschreibung": ["In transit"],
+            "Description": ["In transit"],
         })
         texts = _capture_input_texts(df)
         assert "Reason code:" not in texts[0], (
@@ -166,7 +166,7 @@ class TestEmbeddingPrefix:
     def test_english_prefix_present(self):
         """'Carrier shipment event:' is the embedding prefix."""
         df = pd.DataFrame({
-            "Beschreibung": ["Delivered successfully"],
+            "Description": ["Delivered successfully"],
         })
         texts = _capture_input_texts(df)
         assert texts[0].startswith("Carrier shipment event:"), (
@@ -174,12 +174,12 @@ class TestEmbeddingPrefix:
         )
 
     def test_german_prefix_absent(self):
-        """Old German prefix 'Beschreibung eines Sendungsstatus' must NOT appear."""
+        """Old German prefix 'Description eines Sendungsstatus' must NOT appear."""
         df = pd.DataFrame({
-            "Beschreibung": ["Sendung zugestellt"],
+            "Description": ["Sendung zugestellt"],
         })
         texts = _capture_input_texts(df)
-        assert "Beschreibung eines Sendungsstatus" not in texts[0], (
+        assert "Description eines Sendungsstatus" not in texts[0], (
             f"Old German prefix found in: {texts[0]!r}"
         )
 
@@ -188,7 +188,7 @@ class TestEmbeddingPrefix:
         df = pd.DataFrame({
             "Statuscode": ["01"],
             "Reasoncode": ["X"],
-            "Beschreibung": ["Paket angekommen"],
+            "Description": ["Paket angekommen"],
         })
         texts = _capture_input_texts(df)
         assert "Transportdienstleister" not in texts[0], (
@@ -206,7 +206,7 @@ class TestPartSeparator:
         df = pd.DataFrame({
             "Statuscode": ["99"],
             "Reasoncode": ["Z"],
-            "Beschreibung": ["In transit"],
+            "Description": ["In transit"],
         })
         texts = _capture_input_texts(df)
         # After normalization: "status code: 99. reason code: z. description: in transit"
@@ -220,7 +220,7 @@ class TestPartSeparator:
         df = pd.DataFrame({
             "Statuscode": ["01"],
             "Reasoncode": ["A"],
-            "Beschreibung": ["Delivered"],
+            "Description": ["Delivered"],
         })
         texts = _capture_input_texts(df)
         assert ". description:" in texts[0], (
@@ -232,7 +232,7 @@ class TestPartSeparator:
         df = pd.DataFrame({
             "Statuscode": ["42"],
             "Reasoncode": ["03"],
-            "Beschreibung": ["Delivered"],
+            "Description": ["Delivered"],
         })
         texts = _capture_input_texts(df)
         # Old behaviour produced "42 03 Delivered" — bare values space-separated.
@@ -250,7 +250,7 @@ class TestNormalizeInputIntegration:
     def test_normalize_lowercases_description(self):
         """normalize_input lowercases the assembled combined_text."""
         df = pd.DataFrame({
-            "Beschreibung": ["Package ARRIVED"],
+            "Description": ["Package ARRIVED"],
         })
         texts = _capture_input_texts(df)
         # The prefix itself is mixed-case; everything after "Carrier shipment event: "
@@ -263,7 +263,7 @@ class TestNormalizeInputIntegration:
     def test_normalize_expands_depot_synonym(self):
         """normalize_input expands 'DEPOT' -> 'facility' in the description."""
         df = pd.DataFrame({
-            "Beschreibung": ["Package arrived at DEPOT"],
+            "Description": ["Package arrived at DEPOT"],
         })
         texts = _capture_input_texts(df)
         assert "facility" in texts[0], (
@@ -276,7 +276,7 @@ class TestNormalizeInputIntegration:
     def test_normalize_removes_timestamp(self):
         """normalize_input removes ISO-8601 timestamps from the description."""
         df = pd.DataFrame({
-            "Beschreibung": ["Scan 2026-02-17 14:30:00 at facility"],
+            "Description": ["Scan 2026-02-17 14:30:00 at facility"],
         })
         texts = _capture_input_texts(df)
         assert "2026-02-17" not in texts[0], (
@@ -287,7 +287,7 @@ class TestNormalizeInputIntegration:
         """normalize_input lowercases the status code field too."""
         df = pd.DataFrame({
             "Statuscode": ["ABC"],
-            "Beschreibung": ["test"],
+            "Description": ["test"],
         })
         texts = _capture_input_texts(df)
         assert "status code: abc" in texts[0], (

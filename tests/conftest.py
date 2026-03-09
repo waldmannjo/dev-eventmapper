@@ -27,7 +27,7 @@ def sample_df():
     return pd.DataFrame({
         'Statuscode': ['01', '02', '03'],
         'Reasoncode': ['A', 'B', 'C'],
-        'Beschreibung': [
+        'Description': [
             'Package arrived at depot',
             'Delivery attempted but customer absent',
             'Customs clearance in progress'

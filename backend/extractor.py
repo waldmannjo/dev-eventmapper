@@ -1,8 +1,8 @@
-# Schritt 2: Extraktion
-# Extrahiere Statuscodes und Reasoncodes aus dem Dokument.
+# Step 2: Extraction
+# Extract status codes and reason codes from the document.
 
-# Konfiguration
-# LLM_MODEL = "gpt-4o"  # Stärkeres Modell für Analyse empfohlen
+# Configuration
+# LLM_MODEL = "gpt-4o"  # Stronger model recommended for analysis
 
 
 import json
@@ -12,52 +12,52 @@ from openai import OpenAI
 
 def extract_data_step2(client, text: str, status_scope: list, reason_scope: list, model_name: str = "gpt-4o"):
     """
-    Extrahiert Daten basierend auf dem Scope (User-Auswahl).
-    Priorisiert existierende Kombinationen im Text.
+    Extracts data based on the scope (user selection).
+    Prioritizes existing combinations in the text.
     """
-    
-    # 1. Scopes für den Prompt formatieren
-    # Wenn Listen leer sind, setzen wir einen Platzhalter, damit der Prompt nicht verwirrt ist.
-    scope_text_status = ", ".join(status_scope) if status_scope else "Keine spezifische Auswahl (suche allgemein)"
-    scope_text_reason = ", ".join(reason_scope) if reason_scope else "Keine (Code 'nicht vorhanden')"
 
-    system_prompt = "Du bist ein Datenextraktions-Assistent. Antworte ausschließlich mit validem JSON."
+    # 1. Format scopes for the prompt
+    # If lists are empty, set a placeholder so the prompt is not confused.
+    scope_text_status = ", ".join(status_scope) if status_scope else "No specific selection (search generally)"
+    scope_text_reason = ", ".join(reason_scope) if reason_scope else "None (code 'not available')"
+
+    system_prompt = "You are a data extraction assistant. Reply exclusively with valid JSON."
 
     user_prompt = f"""
-    # Aufgabe
-    Extrahiere Statuscodes und Reasoncodes aus dem Dokument. Halte dich dabei STRENG an die vom User getroffene Auswahl der Quellen.
+    # Task
+    Extract status codes and reason codes from the document. Strictly follow the user's selected sources.
 
-    # User-Auswahl (Scope)
-    - Nutze für Statuscodes diese Quellen: {scope_text_status}
-    - Nutze für Reasoncodes diese Quellen: {scope_text_reason}
+    # User Selection (Scope)
+    - Use these sources for status codes: {scope_text_status}
+    - Use these sources for reason codes: {scope_text_reason}
 
-    # ENTSCHEIDUNGSLOGIK (WICHTIG):
-    Analysiere die Struktur der gewählten Quellen und entscheide den Modus:
+    # DECISION LOGIC (IMPORTANT):
+    Analyze the structure of the selected sources and decide the mode:
 
-    FALL A: KOMBINATION GEFUNDEN (Mode: "combined")
-    - Wenn in den gewählten Quellen Statuscodes und Reasoncodes bereits fest verknüpft sind (z.B. eine Tabelle mit Spalten "Status" und "Reason", oder Codes wie "10-01" wobei 10 Status und 01 Reason ist).
-    - Oder wenn der User für Status und Reason dieselbe Tabelle gewählt hat und diese beide Informationen enthält.
-    -> DANN: Extrahiere diese exakte Kombination in 'combined_csv'.
-    
-    FALL B: GETRENNTE LISTEN (Mode: "separate")
-    - Wenn die gewählten Quellen für Status und Reason strukturell voneinander getrennt sind (z.B. "Tabelle 8" nur Status, "Tabelle 12" nur Reasons).
-    - Und keine logische Verknüpfung im Text besteht.
-    -> DANN: Extrahiere Statuscodes nach 'status_csv' und Reasoncodes nach 'reasons_csv'.
+    CASE A: COMBINATION FOUND (Mode: "combined")
+    - If the selected sources already have status codes and reason codes firmly linked (e.g. a table with columns "Status" and "Reason", or codes like "10-01" where 10 is status and 01 is reason).
+    - Or if the user selected the same table for both status and reason and it contains both types of information.
+    -> THEN: Extract this exact combination into 'combined_csv'.
+
+    CASE B: SEPARATE LISTS (Mode: "separate")
+    - If the selected sources for status and reason are structurally separate (e.g. "Table 8" only status, "Table 12" only reasons).
+    - And there is no logical link in the text.
+    -> THEN: Extract status codes into 'status_csv' and reason codes into 'reasons_csv'.
 
     # Output JSON Format
     {{
-      "mode": "combined" ODER "separate",
-      "combined_csv": "Statuscode;Reasoncode;Beschreibung",  // Nur füllen wenn mode=combined
-      "status_csv": "Statuscode;Beschreibung",               // Nur füllen wenn mode=separate
-      "reasons_csv": "Reasoncode;Beschreibung"               // Nur füllen wenn mode=separate
+      "mode": "combined" OR "separate",
+      "combined_csv": "Statuscode;Reasoncode;Description",  // Only fill if mode=combined
+      "status_csv": "Statuscode;Description",               // Only fill if mode=separate
+      "reasons_csv": "Reasoncode;Description"               // Only fill if mode=separate
     }}
-    
-    # Formatierungsregeln
-    - Separator: Semikolon (;)
-    - Header in den CSV-Strings inkludieren.
-    - Wenn Spaltennamen im Text fehlen, benenne sie generisch (Code;Beschreibung).
-    
-    Dokument:
+
+    # Formatting Rules
+    - Separator: semicolon (;)
+    - Include headers in the CSV strings.
+    - If column names are missing from the text, use generic names (Code;Description).
+
+    Document:
     {text}
     """
 
@@ -70,7 +70,7 @@ def extract_data_step2(client, text: str, status_scope: list, reason_scope: list
     return json.loads(response.output_text)
 
 def preview_csv_string(csv_str):
-    """Hilfsfunktion: Wandelt CSV-String in DataFrame für Preview um."""
+    """Helper function: converts CSV string to DataFrame for preview."""
     if not csv_str or len(csv_str) < 5:
         return pd.DataFrame()
     try:

@@ -26,7 +26,7 @@ _hf_http.get_session = _patched_get_session
 
 from sklearn.metrics.pairwise import cosine_similarity
 from sentence_transformers import CrossEncoder
-import streamlit as st # Für Caching des Modells
+import streamlit as st  # For model caching
 
 from codes import CODES  # Importiert codes.py aus dem Hauptverzeichnis
 from rank_bm25 import BM25Okapi
@@ -133,7 +133,7 @@ def load_cross_encoder():
     return CrossEncoder(CROSS_ENCODER_MODEL_NAME)
 
 def embed_texts(client, texts, batch_size=500, dimensions=None):
-    """Erzeugt Embeddings für eine Liste von Texten in Batches."""
+    """Generates embeddings for a list of texts in batches."""
     if not texts:
         return np.array([])
 
@@ -180,7 +180,7 @@ def _compute_history_cache_hash():
 
 @st.cache_resource
 def load_history_examples(_client):
-    """Lädt historische Mappings und berechnet deren Embeddings einmalig.
+    """Loads historical mappings and computes their embeddings once.
     Uses a disk cache (.npy + .pkl) to avoid re-embedding 11k+ texts on cold start."""
     if not os.path.exists(HISTORY_FILE):
         return None, None
@@ -232,17 +232,17 @@ def load_history_examples(_client):
 
 def get_similar_historical_entries(query_vec, df_hist, hist_vecs, top_k=3):
     """
-    Findet die ähnlichsten historischen Beispiele für einen Query-Vektor.
-    Gibt eine Liste von Dicts zurück: [{'input': str, 'mapped_code': str, 'score': float}, ...]
+    Finds the most similar historical examples for a query vector.
+    Returns a list of dicts: [{'input': str, 'mapped_code': str, 'score': float}, ...]
     """
     if df_hist is None or hist_vecs is None or len(hist_vecs) == 0:
         return []
     
-    # Cosine Similarity berechnen
-    # query_vec ist (dim,), hist_vecs ist (N, dim)
+    # Compute cosine similarity
+    # query_vec is (dim,), hist_vecs is (N, dim)
     sims = cosine_similarity(query_vec.reshape(1, -1), hist_vecs).ravel()
-    
-    # Top K Indizes
+
+    # Top K indices
     top_indices = np.argsort(sims)[-top_k:][::-1]
     
     examples = []
@@ -288,18 +288,18 @@ async def classify_single_row(async_client, row_text, candidates, hist_str, mode
             if gap < 0.05:
                 cand_str += f"\n\nNote: Top candidates are very close in score (gap: {gap:.1%}). Pay close attention to semantic differences."
         
-        system_prompt = "Du bist ein Mapping-Experte. Wähle den passendsten Code aus den Vorschlägen. Nutze die historischen Beispiele als Orientierung für den Stil der Zuordnung."
-        
+        system_prompt = "You are a mapping expert. Select the most appropriate code from the suggestions. Use the historical examples as guidance for the mapping style."
+
         user_prompt = f"""
-        Mappe diesen Input auf einen Standard-Code.
-        
+        Map this input to a standard code.
+
         Input: "{row_text}"
-        
-        Vorschläge (basierend auf Ähnlichkeit):
+
+        Suggestions (based on similarity):
         {cand_str}
         {hist_str}
-        
-        Antworte im JSON-Format: {{ "code": "CODE", "reasoning": "Kurze Begründung" }}
+
+        Respond in JSON format: {{ "code": "CODE", "reasoning": "Brief justification" }}
         """
         
         try:
@@ -327,7 +327,7 @@ async def run_llm_batch_async(api_key, tasks_data, model_name, progress_callback
     
     async def wrapped_classify(item):
         nonlocal completed
-        # Task ausführen
+        # Execute task
         res = await classify_single_row(
             async_client, 
             item['text'], 
@@ -378,22 +378,22 @@ def run_mapping_step4(client, df, model_name, threshold: float = 0.60, progress_
     use_bm25 = cfg["use_bm25"]
     use_keyword_boost = cfg["use_keyword_boost"]
 
-    if progress_callback: progress_callback(0.05, "Lade Ressourcen & Embeddings...")
+    if progress_callback: progress_callback(0.05, "Loading resources & embeddings...")
 
     # Ressourcen laden
     ce_model = load_cross_encoder()
     df_hist, hist_vecs = load_history_examples(client)
 
-    # Textspalte finden
-    if "Beschreibung" not in df.columns:
-        df["Beschreibung"] = df.iloc[:, -1]
+    # Find text column
+    if "Description" not in df.columns:
+        df["Description"] = df.iloc[:, -1]
 
     # 1. Embed Standard Codes
     code_texts = [f"Definition eines internen Sendungsstatus: {c[1]}. Details: {c[2]}" for c in CODES]
     code_vecs = embed_texts(client, code_texts)
 
     # 1.5. Build BM25 index
-    if progress_callback: progress_callback(0.08, "Baue BM25 Index...")
+    if progress_callback: progress_callback(0.08, "Building BM25 index...")
     bm25_index = build_bm25_index()
 
     # 2. Embed Input (Enhanced Context)
@@ -406,7 +406,7 @@ def run_mapping_step4(client, df, model_name, threshold: float = 0.60, progress_
             parts.append(f"Status code: {row['Statuscode']}")
         if "Reasoncode" in df.columns:
             parts.append(f"Reason code: {row['Reasoncode']}")
-        parts.append(f"Description: {row['Beschreibung']}")
+        parts.append(f"Description: {row['Description']}")
 
         combined_text = ". ".join(parts)
         normalized_text = normalize_input(combined_text)
@@ -565,12 +565,12 @@ def run_mapping_step4(client, df, model_name, threshold: float = 0.60, progress_
     total_unsure = len(unsure_indices)
 
     if total_unsure > 0:
-        if progress_callback: progress_callback(0.7, f"Starte LLM Batch-Verarbeitung für {total_unsure} Zeilen...")
+        if progress_callback: progress_callback(0.7, f"Starting LLM batch processing for {total_unsure} rows...")
         
         # Prepare data for batch processing
         tasks_data = []
         for i, idx in enumerate(unsure_indices):
-            row_text = df.at[idx, 'Beschreibung']
+            row_text = df.at[idx, 'Description']
             pos_idx = df.index.get_loc(idx)
             candidates = top_candidates_list[pos_idx]
 
@@ -586,8 +586,8 @@ def run_mapping_step4(client, df, model_name, threshold: float = 0.60, progress_
             
             hist_str = ""
             if hist_examples:
-                hist_lines = [f"- Input '{ex['input']}' wurde gemappt auf '{ex['mapped_code']}'" for ex in hist_examples]
-                hist_str = "\nHistorische Beispiele (zur Orientierung):\n" + "\n".join(hist_lines)
+                hist_lines = [f"- Input '{ex['input']}' was mapped to '{ex['mapped_code']}'" for ex in hist_examples]
+                hist_str = "\nHistorical examples (for reference):\n" + "\n".join(hist_lines)
 
             # Contrastive example: similar input mapped to a different code
             top_candidate_code = candidates[0]['code'] if candidates else None
@@ -595,9 +595,9 @@ def run_mapping_step4(client, df, model_name, threshold: float = 0.60, progress_
                 contrastive = find_contrastive_example(current_vec, df_hist, hist_vecs, top_candidate_code)
                 if contrastive:
                     hist_str += (
-                        f"\n\nAchtung — ähnlicher Input mit anderem Ergebnis:"
-                        f"\n- Input '{contrastive['input']}' wurde auf '{contrastive['mapped_code']}'"
-                        f" gemappt (NICHT auf {top_candidate_code})"
+                        f"\n\nNote — similar input with different result:"
+                        f"\n- Input '{contrastive['input']}' was mapped to '{contrastive['mapped_code']}'"
+                        f" (NOT to {top_candidate_code})"
                     )
             
             tasks_data.append({

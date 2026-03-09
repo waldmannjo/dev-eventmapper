@@ -15,9 +15,9 @@ def merge_data_step3(extraction_result):
         if not df.empty:
             # Cleanup Spaltennamen
             df.columns = [c.strip() for c in df.columns]
-            # Sicherheitscheck: Falls "Beschreibung" fehlt, letzte Spalte nehmen
-            if "Beschreibung" not in df.columns:
-                df["Beschreibung"] = df.iloc[:, -1]
+            # Safety check: if "Description" column is missing, use the last column
+            if "Description" not in df.columns:
+                df["Description"] = df.iloc[:, -1]
         return df
 
     # FALL B: Getrennte Listen (Separate Mode)
@@ -28,67 +28,67 @@ def merge_data_step3(extraction_result):
         df_status = preview_csv_string(status_csv)
         df_reasons = preview_csv_string(reasons_csv)
         
-        # --- INTELLIGENTER CHECK: Sind echte Reasoncodes vorhanden? ---
+        # --- SMART CHECK: Are there real reason codes? ---
         has_real_reasons = False
-        
+
         if not df_reasons.empty:
-            # Wir prüfen die erste Zeile auf typische "Leer"-Phrasen der KI
+            # Check the first row for typical AI "empty" phrases
             first_code = str(df_reasons.iloc[0, 0]).strip().lower()
-            
-            # Falls mehr als eine Spalte da ist, prüfen wir auch die Beschreibung
+
+            # If there is more than one column, also check the description
             first_desc = ""
             if df_reasons.shape[1] > 1:
                 first_desc = str(df_reasons.iloc[0, 1]).strip().lower()
-            
+
             invalid_keywords = ["nicht vorhanden", "keine", "none", "n/a", "not available", "no codes"]
-            
-            # Nur wenn KEIN invalid keyword gefunden wird, gelten die Reasons als echt
-            is_dummy_code = any(k == first_code for k in invalid_keywords) # Exakter Match oder sehr nah
-            is_dummy_desc = any(k in first_desc for k in invalid_keywords) # Substring Match
+
+            # Only if NO invalid keyword is found, reasons are considered real
+            is_dummy_code = any(k == first_code for k in invalid_keywords)  # Exact match or very close
+            is_dummy_desc = any(k in first_desc for k in invalid_keywords)  # Substring match
             
             if not is_dummy_code and not is_dummy_desc:
                 has_real_reasons = True
 
-        # --- MERGE LOGIK ---
+        # --- MERGE LOGIC ---
         if has_real_reasons and not df_status.empty:
-            # Cross Join (Jeder Status mit jedem Reason)
+            # Cross join (every status with every reason)
             df_status['key'] = 1
             df_reasons['key'] = 1
             df_combined = pd.merge(df_status, df_reasons, on='key').drop("key", axis=1)
-            
-            # Spalten normalisieren (Wir erwarten 4 relevante Spalten nach Merge)
-            # Struktur ist jetzt: [StatusCol1, StatusCol2, ReasonCol1, ReasonCol2]
+
+            # Normalize columns (we expect 4 relevant columns after merge)
+            # Structure now: [StatusCol1, StatusCol2, ReasonCol1, ReasonCol2]
             cols = df_combined.columns.tolist()
-            
-            # Annahme: Spalte 0=Status, Spalte 1=StatusDesc, Spalte 2=Reason, Spalte 3=ReasonDesc
-            # Wir benennen sie generisch um, um Fehler zu vermeiden
+
+            # Assumption: col 0=Status, col 1=StatusDesc, col 2=Reason, col 3=ReasonDesc
+            # Rename generically to avoid errors
             if len(cols) >= 4:
                 df_combined.columns = ["Statuscode", "StatusDesc", "Reasoncode", "ReasonDesc"] + cols[4:]
                 
-                # Beschreibung kombinieren: "StatusText - ReasonText"
-                df_combined["Beschreibung"] = df_combined["StatusDesc"].astype(str) + " - " + df_combined["ReasonDesc"].astype(str)
-                
-                return df_combined[["Statuscode", "Reasoncode", "Beschreibung"]]
+                # Combine description: "StatusText - ReasonText"
+                df_combined["Description"] = df_combined["StatusDesc"].astype(str) + " - " + df_combined["ReasonDesc"].astype(str)
+
+                return df_combined[["Statuscode", "Reasoncode", "Description"]]
             
-            # Fallback falls Spaltenstruktur unerwartet
+            # Fallback if column structure is unexpected
             return df_combined
 
-        # --- FALLBACK: NUR STATUS (Wenn keine echten Reasons da sind) ---
+        # --- FALLBACK: STATUS ONLY (when no real reasons are present) ---
         elif not df_status.empty:
-            # Wir erwarten: Spalte 0 = Code, Spalte 1 = Beschreibung
-            # Falls nur 1 Spalte da ist, duplizieren wir sie
+            # We expect: col 0 = Code, col 1 = Description
+            # If only 1 column exists, duplicate it
             if df_status.shape[1] == 1:
                 df_status.columns = ["Statuscode"]
-                df_status["Beschreibung"] = df_status["Statuscode"]
+                df_status["Description"] = df_status["Statuscode"]
             else:
-                # Wir nehmen die ersten zwei Spalten
+                # Take the first two columns
                 df_status = df_status.iloc[:, :2]
-                df_status.columns = ["Statuscode", "Beschreibung"]
-            
-            # Reasoncode explizit leer lassen (NICHT "nicht vorhanden")
+                df_status.columns = ["Statuscode", "Description"]
+
+            # Explicitly leave Reasoncode empty (NOT "not available")
             df_status["Reasoncode"] = ""
-            
-            return df_status[["Statuscode", "Reasoncode", "Beschreibung"]]
+
+            return df_status[["Statuscode", "Reasoncode", "Description"]]
             
     return pd.DataFrame()
 
@@ -96,33 +96,33 @@ def apply_ai_transformation(client, df: pd.DataFrame, instruction: str, model_na
     """
     Passt den DataFrame basierend auf einer Nutzeranweisung per LLM an.
     """
-    # Wir geben der KI Infos über die Spalten und Datentypen
+    # Provide the AI with column and data type information
     col_info = df.dtypes.to_string()
     sample_data = df.head(3).to_string()
 
-    system_prompt = "Du bist ein Python Pandas Experte. Antworte NUR mit ausführbarem Python-Code. Kein Markdown, keine Erklärungen."
-    
+    system_prompt = "You are a Python Pandas expert. Reply ONLY with executable Python code. No Markdown, no explanations."
+
     user_prompt = f"""
-    Gegeben ist ein Pandas DataFrame `df`.
-    
-    Spalten und Typen:
+    Given a Pandas DataFrame `df`.
+
+    Columns and types:
     {col_info}
-    
-    Beispieldaten:
+
+    Sample data:
     {sample_data}
-    
-    AUFGABE:
-    Manipuliere `df` basierend auf dieser Anweisung: "{instruction}"
-    
-    REGELN:
-    1. Der Code muss direkt auf der Variable `df` arbeiten.
-    2. Du darfst Spalten überschreiben oder neue hinzufügen.
-    3. Beachte Datentypen (konvertiere zu str, falls nötig).
-    4. Gib NUR den Python-Code zurück, keine ``` Blöcke.
-    5. Gehe davon aus, dass `df` bereits importiert ist.
-    
-    Beispiel-Input: "Füge Spalte 'A' und 'B' zusammen"
-    Beispiel-Output: df['A'] = df['A'].astype(str) + df['B'].astype(str)
+
+    TASK:
+    Manipulate `df` based on this instruction: "{instruction}"
+
+    RULES:
+    1. The code must operate directly on the variable `df`.
+    2. You may overwrite columns or add new ones.
+    3. Consider data types (convert to str if needed).
+    4. Return ONLY the Python code, no ``` blocks.
+    5. Assume `df` is already imported.
+
+    Example input: "Concatenate column 'A' and 'B'"
+    Example output: df['A'] = df['A'].astype(str) + df['B'].astype(str)
     """
 
     try:
@@ -139,10 +139,10 @@ def apply_ai_transformation(client, df: pd.DataFrame, instruction: str, model_na
         # Text aus der Responses API extrahieren
         code = (response.output_text or "").strip()
         
-        # Entferne Markdown Code-Blöcke falls die KI sie doch macht
+        # Remove Markdown code blocks in case the AI includes them anyway
         code = code.replace("```python", "").replace("```", "").strip()
         
-        # --- ACHTUNG: EXEC IST POTENZIELL GEFÄHRLICH ---
+        # --- WARNING: EXEC IS POTENTIALLY DANGEROUS ---
         # In einer lokalen App/Prototyp okay. In Produktion Sandbox verwenden!
         local_vars = {"df": df.copy(), "pd": pd, "np": np}
         exec(code, {}, local_vars)
@@ -150,5 +150,5 @@ def apply_ai_transformation(client, df: pd.DataFrame, instruction: str, model_na
         return local_vars["df"]
         
     except Exception as e:
-        print(f"Fehler bei Transformation: {e}")
-        return df # Original zurückgeben bei Fehler
+        print(f"Error during transformation: {e}")
+        return df  # Return original on error

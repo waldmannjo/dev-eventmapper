@@ -2,7 +2,7 @@ import io
 import pandas as pd
 
 def extract_text_from_file(uploaded_file):
-    """Liest Text aus PDF, XLSX, CSV, TXT. Liest bei Excel ALLE Sheets."""
+    """Reads text from PDF, XLSX, CSV, TXT. For Excel, reads ALL sheets."""
     filename = uploaded_file.name
     text = ""
     
@@ -14,13 +14,13 @@ def extract_text_from_file(uploaded_file):
                 text += page.extract_text() + "\n"
                 
         elif filename.endswith('.xlsx'):
-            # sheet_name=None liest ALLE Blätter in ein Dictionary
-            # Key = Sheet-Name, Value = DataFrame
+            # sheet_name=None reads ALL sheets into a dictionary
+            # Key = sheet name, Value = DataFrame
             dfs = pd.read_excel(uploaded_file, sheet_name=None)
-            
+
             for sheet_name, df in dfs.items():
-                # Wir fügen eine klare Markierung hinzu, damit die KI das Sheet erkennt
-                text += f"\n--- TABELLENBLATT: {sheet_name} ---\n"
+                # Add a clear marker so the AI can identify the sheet
+                text += f"\n--- WORKSHEET: {sheet_name} ---\n"
                 text += df.to_string() + "\n"
                 
         elif filename.endswith('.csv') or filename.endswith('.txt'):
@@ -28,7 +28,7 @@ def extract_text_from_file(uploaded_file):
             text = stringio.read()
             
     except Exception as e:
-        return f"Fehler beim Lesen: {e}"
-        
-    # Optional: Limit erhöhen, falls viele Sheets da sind
+        return f"Error reading file: {e}"
+
+    # Optional: increase limit if there are many sheets
     return text[:100000]

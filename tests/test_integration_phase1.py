@@ -68,7 +68,7 @@ def test_phase1_full_pipeline():
         {
             "Statuscode": ["01", "02", "03", "04"],
             "Reasoncode": ["A", "B", "C", "D"],
-            "Beschreibung": [
+            "Description": [
                 "Paket ist im Depot angekommen",
                 "Empfaenger nicht angetroffen, Benachrichtigung hinterlegt",
                 "Sendung befindet sich in Zollabfertigung",

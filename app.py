@@ -22,7 +22,7 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 import streamlit as st
 import pandas as pd
 from openai import OpenAI
-import backend as logic  # <-- Das ist unser neues Modul
+import backend as logic  # <-- Our new backend module
 from backend.mapper import HISTORY_FILE, CACHE_EMBEDDINGS, CACHE_DF, CACHE_META
 
 VERSION = "0.4.0"
@@ -30,8 +30,8 @@ VERSION = "0.4.0"
 st.set_page_config(page_title="Eventmapper", layout="wide")
 st.title("Eventmapper")
 
-# --- KONFIGURATION ---
-# Konfiguration der verfügbaren Modelle mit Beschreibung und Kosten
+# --- CONFIGURATION ---
+# Configuration of available models with description and cost
 MODEL_CONFIG = {
     "gpt-5-nano-2025-08-07": {"desc": "Fastest, most cost-efficient version of GPT-5", "cost": "Input: $0.05, Output: $0.4"},
     "gpt-5-mini-2025-08-07": {"desc": "A faster, cost-efficient version of GPT-5 for well-defined tasks", "cost": "Input: $0.25, Output: $2"},
@@ -66,20 +66,20 @@ with st.sidebar:
     if api_key:
         client = OpenAI(api_key=api_key)
     else:
-        st.warning("Bitte API Key eingeben.")
+        st.warning("Please enter your API Key.")
         st.stop()
-        
-    if st.button("🔄 Prozess zurücksetzen", help="Löscht alle gespeicherten Daten und setzt den Workflow auf Schritt 0 zurück."):
+
+    if st.button("🔄 Reset Process", help="Clears all stored data and resets the workflow to step 0."):
         st.session_state.clear()
         st.rerun()
 
     # --- DEBUG / TEST MODE ---
     with st.sidebar:
         st.markdown("---")
-        with st.expander("🛠️ Test: Mapping direkt"):
-            st.caption("Lade eine CSV/Excel Datei hoch, um direkt zu Schritt 3 (Pre-Mapping) zu springen.")
-            debug_file = st.file_uploader("Datei laden", type=["csv", "xlsx"], key="debug_upl")
-            if debug_file and st.button("🚀 Direkt laden"):
+        with st.expander("🛠️ Test: Direct Mapping"):
+            st.caption("Upload a CSV/Excel file to jump directly to Step 3 (Pre-Mapping).")
+            debug_file = st.file_uploader("Load file", type=["csv", "xlsx"], key="debug_upl")
+            if debug_file and st.button("🚀 Load directly"):
                 try:
                     if debug_file.name.endswith(".csv"):
                         df_d = pd.read_csv(debug_file, sep=None, engine="python")
@@ -90,7 +90,7 @@ with st.sidebar:
                     if not st.session_state.raw_text: st.session_state.raw_text = "DEBUG"
                     st.rerun()
                 except Exception as e:
-                    st.error(f"Fehler: {e}")
+                    st.error(f"Error: {e}")
 
     st.markdown("---")
     st.caption(f"Eventmapper v{VERSION}")
@@ -136,7 +136,7 @@ with st.sidebar:
                     for item in items:
                         st.markdown(f"- {item}")
 
-# --- State Initialisierung ---
+# --- State Initialization ---
 if "current_step" not in st.session_state:
     st.session_state.current_step = 0
 
@@ -150,119 +150,119 @@ if "df_status_edit" not in st.session_state: st.session_state.df_status_edit = p
 if "df_reasons_edit" not in st.session_state: st.session_state.df_reasons_edit = pd.DataFrame()
 
 # =========================================================
-# SCHRITT 0: UPLOAD
+# STEP 0: UPLOAD
 # =========================================================
-st.header("Schritt 0: Dokument Upload")
-uploaded_file = st.file_uploader("Datei hochladen", type=["pdf", "xlsx", "csv", "txt"])
+st.header("Step 0: Document Upload")
+uploaded_file = st.file_uploader("Upload file", type=["pdf", "xlsx", "csv", "txt"])
 
 if uploaded_file and not st.session_state.raw_text:
-    with st.spinner("Lese Datei ein..."):
+    with st.spinner("Reading file..."):
         text = logic.extract_text_from_file(uploaded_file)
         st.session_state.raw_text = text
-        st.success(f"Text extrahiert ({len(text)} Zeichen).")
+        st.success(f"Text extracted ({len(text)} characters).")
         st.session_state.current_step = 0
 
 if st.session_state.raw_text:
     if st.session_state.current_step == 0:
         model_step1 = st.selectbox(
-            "Modell für Strukturanalyse wählen:", 
-            options=MODEL_CONFIG.keys(), 
+            "Select model for structural analysis:",
+            options=MODEL_CONFIG.keys(),
             format_func=format_model_option,
-            index=0, 
+            index=0,
             key="model_step1"
         )
-        if st.button("Weiter zu Schritt 1: Strukturanalyse starten"):
-            with st.spinner("Analysiere Struktur..."):
+        if st.button("Continue to Step 1: Start Structural Analysis"):
+            with st.spinner("Analyzing structure..."):
                 res = logic.analyze_structure_step1(client, st.session_state.raw_text, model_name=model_step1)
                 st.session_state.analysis_res = res
                 st.session_state.current_step = 1
                 st.rerun()
 
 # =========================================================
-# SCHRITT 1: ANALYSE ERGEBNIS
+# STEP 1: ANALYSIS RESULT
 # =========================================================
 if st.session_state.current_step >= 1 and st.session_state.analysis_res:
     st.divider()
-    st.header("Schritt 1: Quellen-Auswahl")
-    
+    st.header("Step 1: Source Selection")
+
     res = st.session_state.analysis_res
-    
-    # 1. Kandidaten aus JSON holen
+
+    # 1. Get candidates from JSON
     stat_candidates = res.get("status_candidates", [])
     reas_candidates = res.get("reason_candidates", [])
-    
-    # Fallback für alte Struktur (falls JSON mal anders aussieht)
+
+    # Fallback for old structure (in case JSON looks different)
     if not stat_candidates and "Statuscode" in res:
-        stat_candidates = [{"name": res["Statuscode"].get("Bezeichnung_im_Dokument", "Standard"), "description": "Automatisch erkannt"}]
+        stat_candidates = [{"name": res["Statuscode"].get("Bezeichnung_im_Dokument", "Default"), "description": "Automatically detected"}]
 
     col1, col2 = st.columns(2)
 
-    # 2. UI für Statuscodes (Multiselect)
+    # 2. UI for status codes (Multiselect)
     with col1:
-        st.subheader("Statuscode Quellen")
+        st.subheader("Status Code Sources")
         if stat_candidates:
-            # Erstelle Liste von Namen für das UI
+            # Create list of names for the UI
             stat_options = [c["name"] for c in stat_candidates]
-            # Standardmäßig alle auswählen
+            # Select all by default
             selected_stats = st.multiselect(
-                "Welche Tabellen nutzen?",
+                "Which tables to use?",
                 options=stat_options,
                 default=stat_options,
-                help="Wählen Sie hier, ob Sie Tabelle 8, Tabelle 9 oder beide nutzen wollen."
+                help="Select whether to use Table 8, Table 9, or both."
             )
-            # Details der Kandidaten anzeigen
+            # Show candidate details
             for c in stat_candidates:
                 with st.expander(f"📋 {c['name']}", expanded=True):
                     if c.get("context"):
-                        st.caption(f"📍 Fundstelle: {c['context']}")
+                        st.caption(f"📍 Location: {c['context']}")
                     if c.get("description"):
                         st.write(c["description"])
         else:
-            st.warning("Keine Status-Tabellen gefunden.")
+            st.warning("No status tables found.")
             selected_stats = []
 
-    # 3. UI für Reasoncodes
+    # 3. UI for reason codes
     with col2:
-        st.subheader("Reasoncode Quellen")
+        st.subheader("Reason Code Sources")
         if reas_candidates:
             reas_options = [c["name"] for c in reas_candidates]
-            selected_reas = st.multiselect("Welche Tabellen nutzen?", options=reas_options, default=reas_options)
-            # Details der Kandidaten anzeigen
+            selected_reas = st.multiselect("Which tables to use?", options=reas_options, default=reas_options)
+            # Show candidate details
             for c in reas_candidates:
                 with st.expander(f"📋 {c['name']}", expanded=False):
                     if c.get("context"):
-                        st.caption(f"📍 Fundstelle: {c['context']}")
+                        st.caption(f"📍 Location: {c['context']}")
                     if c.get("description"):
                         st.write(c["description"])
         else:
-            st.info("Keine Reason-Codes gefunden.")
+            st.info("No reason codes found.")
             selected_reas = []
 
     if st.session_state.current_step == 1:
-        # Button prüft, ob Auswahl getroffen wurde
+        # Button checks whether a selection was made
         model_step2 = st.selectbox(
-            "Modell für Extraktion wählen:", 
-            options=MODEL_CONFIG.keys(), 
+            "Select model for extraction:",
+            options=MODEL_CONFIG.keys(),
             format_func=format_model_option,
-            index=0, 
+            index=0,
             key="model_step2"
         )
         col_back, col_next = st.columns([1, 3])
         with col_back:
-            if st.button("🔙 Analyse wiederholen"):
+            if st.button("🔙 Repeat Analysis"):
                 st.session_state.current_step = 0
                 st.rerun()
         with col_next:
-            if st.button("Weiter zu Schritt 2: Extraktion mit Auswahl"):
+            if st.button("Continue to Step 2: Extract with Selection"):
                 if not selected_stats:
-                    st.error("Bitte mindestens eine Quelle für Statuscodes wählen.")
+                    st.error("Please select at least one source for status codes.")
                 else:
-                    with st.spinner(f"Extrahiere Daten aus {len(selected_stats)} Quellen..."):
-                        # Wir übergeben jetzt die Listen an Step 2
+                    with st.spinner(f"Extracting data from {len(selected_stats)} sources..."):
+                        # Pass the lists to Step 2
                         ext_res = logic.extract_data_step2(
-                            client, 
-                            st.session_state.raw_text, 
-                            selected_stats, 
+                            client,
+                            st.session_state.raw_text,
+                            selected_stats,
                             selected_reas,
                             model_name=model_step2
                         )
@@ -271,15 +271,15 @@ if st.session_state.current_step >= 1 and st.session_state.analysis_res:
                         st.rerun()
 
 # =========================================================
-# SCHRITT 2: EXTRAKTION ZWISCHENERGEBNIS
+# STEP 2: EXTRACTION INTERMEDIATE RESULT
 # =========================================================
 if st.session_state.current_step >= 2 and st.session_state.extraction_res:
     st.divider()
-    st.header("Schritt 2: Extrahierte Rohdaten")
-    
+    st.header("Step 2: Extracted Raw Data")
+
     mode = st.session_state.extraction_res.get("mode", "unknown")
-    st.info(f"Erkannter Modus: **{mode}**")
-    
+    st.info(f"Detected mode: **{mode}**")
+
     if mode == "separate":
         # Initialize editable working copies on first entry
         if "_select" not in st.session_state.df_status_edit.columns:
@@ -293,24 +293,24 @@ if st.session_state.current_step >= 2 and st.session_state.extraction_res:
         col_a, col_b = st.columns(2)
 
         with col_a:
-            st.caption(f"Statuscodes ({len(st.session_state.df_status_edit)} Zeilen)")
+            st.caption(f"Status codes ({len(st.session_state.df_status_edit)} rows)")
             edited_status = st.data_editor(
                 st.session_state.df_status_edit,
                 key="status_editor",
                 use_container_width=True,
                 height=250,
                 column_config={
-                    "_select": st.column_config.CheckboxColumn("Verschieben", default=False)
+                    "_select": st.column_config.CheckboxColumn("Move", default=False)
                 },
             )
-            if st.button("Verschieben zu Reason \u2192"):
+            if st.button("Move to Reason \u2192"):
                 to_move = edited_status[edited_status["_select"]].drop(columns=["_select"])
                 if to_move.empty:
-                    st.warning("Keine Zeilen ausgewählt.")
+                    st.warning("No rows selected.")
                     st.stop()
                 remaining = edited_status[~edited_status["_select"]].drop(columns=["_select"])
                 if remaining.empty:
-                    st.error("Status-Tabelle darf nicht leer sein.")
+                    st.error("Status table must not be empty.")
                 else:
                     remaining.insert(0, "_select", False)
                     to_move_with_sel = to_move.copy()
@@ -323,20 +323,20 @@ if st.session_state.current_step >= 2 and st.session_state.extraction_res:
                     st.rerun()
 
         with col_b:
-            st.caption(f"Reasoncodes ({len(st.session_state.df_reasons_edit)} Zeilen)")
+            st.caption(f"Reason codes ({len(st.session_state.df_reasons_edit)} rows)")
             edited_reasons = st.data_editor(
                 st.session_state.df_reasons_edit,
                 key="reasons_editor",
                 use_container_width=True,
                 height=250,
                 column_config={
-                    "_select": st.column_config.CheckboxColumn("Verschieben", default=False)
+                    "_select": st.column_config.CheckboxColumn("Move", default=False)
                 },
             )
-            if st.button("\u2190 Verschieben zu Status"):
+            if st.button("\u2190 Move to Status"):
                 to_move = edited_reasons[edited_reasons["_select"]].drop(columns=["_select"])
                 if to_move.empty:
-                    st.warning("Keine Zeilen ausgewählt.")
+                    st.warning("No rows selected.")
                     st.stop()
                 remaining = edited_reasons[~edited_reasons["_select"]].drop(columns=["_select"])
                 remaining.insert(0, "_select", False)
@@ -349,21 +349,21 @@ if st.session_state.current_step >= 2 and st.session_state.extraction_res:
                 )
                 st.rerun()
     else:
-        st.caption("Kombinierte Liste (Vorschau)")
+        st.caption("Combined list (preview)")
         df_c = logic.preview_csv_string(st.session_state.extraction_res.get("combined_csv"))
         st.dataframe(df_c, height=200)
 
     if st.session_state.current_step == 2:
         col_back, col_next = st.columns([1, 3])
         with col_back:
-            if st.button("🔙 Auswahl ändern"):
+            if st.button("🔙 Change Selection"):
                 st.session_state.df_status_edit = pd.DataFrame()
                 st.session_state.df_reasons_edit = pd.DataFrame()
                 st.session_state.current_step = 1
                 st.rerun()
         with col_next:
-            if st.button("Weiter zu Schritt 3: Merge & Formatierung"):
-                with st.spinner("Führe Merge durch..."):
+            if st.button("Continue to Step 3: Merge & Formatting"):
+                with st.spinner("Merging data..."):
                     ext_res = dict(st.session_state.extraction_res)
                     if ext_res.get("mode") == "separate":
                         status_clean = st.session_state.df_status_edit.drop(
@@ -380,72 +380,72 @@ if st.session_state.current_step >= 2 and st.session_state.extraction_res:
                     st.rerun()
 
 # =========================================================
-# SCHRITT 3: MERGE ERGEBNIS
+# STEP 3: MERGE RESULT
 # =========================================================
 if st.session_state.current_step >= 3:
     st.divider()
-    st.header("Schritt 3: Datenaufbereitung")
-    
-    if st.session_state.df_merged.empty:
-        st.error("Keine Daten vorhanden.")
-    else:
-        # --- A. ANZEIGE ---
-        st.subheader("Aktuelle Daten")
-        st.dataframe(st.session_state.df_merged.head(), width='stretch')
-        st.caption(f"Gesamtzeilen: {len(st.session_state.df_merged)}")
+    st.header("Step 3: Data Preparation")
 
-        # --- B. KI TRANSFORMATION (NEU) ---
-        with st.expander("🛠️ Daten transformieren (KI-Assistent)", expanded=False):
-            st.info("Beschreiben Sie, wie die Spalten geändert werden sollen.")
-            
-            # Beispiel-Vorschläge für den User
-            example_prompt = "Hänge Reasoncode an Statuscode an. Wenn Reason leer ist, nimm '00', sonst Reason."
-            user_instruction = st.text_input("Anweisung:", placeholder=example_prompt)
-            
+    if st.session_state.df_merged.empty:
+        st.error("No data available.")
+    else:
+        # --- A. DISPLAY ---
+        st.subheader("Current Data")
+        st.dataframe(st.session_state.df_merged.head(), width='stretch')
+        st.caption(f"Total rows: {len(st.session_state.df_merged)}")
+
+        # --- B. AI TRANSFORMATION ---
+        with st.expander("🛠️ Transform Data (AI Assistant)", expanded=False):
+            st.info("Describe how the columns should be modified.")
+
+            # Example suggestions for the user
+            example_prompt = "Append reason code to status code. If reason is empty, use '00', otherwise use reason."
+            user_instruction = st.text_input("Instruction:", placeholder=example_prompt)
+
             model_step3_trans = st.selectbox(
-                "Modell für Transformation wählen:", 
-                options=MODEL_CONFIG.keys(), 
+                "Select model for transformation:",
+                options=MODEL_CONFIG.keys(),
                 format_func=format_model_option,
-                index=0, 
+                index=0,
                 key="model_step3_trans"
             )
-            
-            if st.button("✨ Ausführen"):
+
+            if st.button("✨ Execute"):
                 if user_instruction:
-                    with st.spinner("KI generiert Pandas-Code und wendet ihn an..."):
-                        # Alten State sichern (Undo-Funktion light)
+                    with st.spinner("AI generating and applying Pandas code..."):
+                        # Save old state (light undo function)
                         st.session_state.df_merged_backup = st.session_state.df_merged.copy()
-                        
-                        # Transformation aufrufen
+
+                        # Apply transformation
                         new_df = logic.apply_ai_transformation(
-                            client, 
-                            st.session_state.df_merged, 
+                            client,
+                            st.session_state.df_merged,
                             user_instruction,
                             model_name=model_step3_trans
                         )
-                        
-                        # Ergebnis prüfen
+
+                        # Check result
                         if new_df.equals(st.session_state.df_merged):
-                            st.warning("Die KI hat keine Änderung vorgenommen (Code evtl. fehlerhaft oder Bedingung nicht erfüllt).")
+                            st.warning("The AI made no changes (code may be faulty or condition not met).")
                         else:
                             st.session_state.df_merged = new_df
-                            st.success("Transformation angewendet!")
+                            st.success("Transformation applied!")
                             st.rerun()
 
-            if st.button("↩️ Letzte Änderung rückgängig machen"):
+            if st.button("↩️ Undo Last Change"):
                 if "df_merged_backup" in st.session_state:
                     st.session_state.df_merged = st.session_state.df_merged_backup
-                    st.success("Rückgängig gemacht.")
+                    st.success("Undone.")
                     st.rerun()
-        
-        # --- NEU: Download Button für Merge-Datei ---
+
+        # --- Download Button for Merge File ---
         csv_merged = st.session_state.df_merged.to_csv(index=False, sep=";").encode('utf-8')
-        
+
         col_dl, col_next = st.columns([1, 2])
-        
+
         with col_dl:
             st.download_button(
-                label="💾 Merge-Daten herunterladen",
+                label="💾 Download Merge Data",
                 data=csv_merged,
                 file_name="merged_codes_step3.csv",
                 mime="text/csv"
@@ -453,41 +453,41 @@ if st.session_state.current_step >= 3:
 
         with col_next:
             if st.session_state.current_step == 3:
-                st.markdown("#### Mapping Konfiguration")
+                st.markdown("#### Mapping Configuration")
                 model_step4 = st.selectbox(
-                    "Modell für Mapping wählen:", 
-                    options=MODEL_CONFIG.keys(), 
+                    "Select model for mapping:",
+                    options=MODEL_CONFIG.keys(),
                     format_func=format_model_option,
-                    index=0, 
+                    index=0,
                     key="model_step4"
                 )
-                
+
                 threshold = st.slider(
-                    "LLM-Schwelle (Confidence Threshold)",
+                    "LLM Threshold (Confidence Threshold)",
                     min_value=0.0, max_value=1.0, value=0.6, step=0.05,
-                    help="Werte unter dieser Schwelle werden vom LLM geprüft. Höher = mehr LLM-Aufrufe (teurer, genauer)."
+                    help="Rows below this threshold are reviewed by the LLM. Higher = more LLM calls (more expensive, more accurate)."
                 )
                 st.caption(
-                    "Zeilen, bei denen das Modell unsicher ist (Confidence < Schwelle), werden zur Sicherheit vom LLM geprüft. "
-                    "Höherer Wert = mehr LLM-Aufrufe (teurer, aber genauer). Niedrigerer Wert = schneller & günstiger, aber mehr Fehler."
+                    "Rows where the model is uncertain (confidence < threshold) are reviewed by the LLM for safety. "
+                    "Higher value = more LLM calls (more expensive, but more accurate). Lower value = faster & cheaper, but more errors."
                 )
 
                 knn_threshold = st.slider(
-                    "k-NN Schwelle (History Match)",
+                    "k-NN Threshold (History Match)",
                     min_value=0.80, max_value=0.99,
                     value=float(MAPPER_CONFIG["knn_threshold"]),
                     step=0.01,
-                    help="Geringere Schwelle = mehr History-Treffer, höheres Risiko falscher Matches. Standard: 0.93."
+                    help="Lower threshold = more history matches, higher risk of incorrect matches. Default: 0.93."
                 )
                 st.caption(
-                    "Wie ähnlich muss ein Event-Text zu einem historischen Mapping sein, damit er direkt übernommen wird (ohne LLM). "
-                    "Höherer Wert = strenger, nur sehr genaue Treffer. Niedrigerer Wert = mehr Treffer aus der History, aber höheres Risiko falscher Übernahmen."
+                    "How similar must an event text be to a historical mapping to be applied directly (without LLM). "
+                    "Higher value = stricter, only very precise matches. Lower value = more history matches, but higher risk of incorrect transfers."
                 )
 
-                if st.button("Weiter zu Schritt 4: KI Mapping starten", type="primary"):
+                if st.button("Continue to Step 4: Start AI Mapping", type="primary"):
                     prog_bar = st.progress(0)
                     status_text = st.empty()
-                    
+
                     def update_progress(p, text):
                         prog_bar.progress(p)
                         status_text.text(text)
@@ -505,16 +505,16 @@ if st.session_state.current_step >= 3:
                     st.rerun()
 
 # =========================================================
-# SCHRITT 4: FINALERGEBNIS
+# STEP 4: FINAL RESULT
 # =========================================================
 if st.session_state.current_step >= 4:
     st.divider()
-    st.header("✅ Schritt 4: Finales Mapping")
-    
+    st.header("✅ Step 4: Final Mapping")
+
     st.dataframe(st.session_state.df_final, width="stretch")
-    
+
     csv_data = st.session_state.df_final.to_csv(index=False, sep=";").encode('utf-8')
-    st.download_button("💾 Mapping herunterladen", csv_data, "final_mapping.csv", "text/csv")
+    st.download_button("💾 Download Mapping", csv_data, "final_mapping.csv", "text/csv")
 
     # --- Save to History ---
     if not st.session_state.df_final.empty and "source" in st.session_state.df_final.columns:
@@ -528,25 +528,25 @@ if st.session_state.current_step >= 4:
         if len(df_save_candidates) > 0:
             st.markdown("---")
             st.markdown(
-                f"**{len(df_save_candidates)} LLM-Mappings** mit Confidence ≥ {SAVE_CONF_THRESHOLD:.0%} "
-                "können zur History gespeichert werden (verbessert zukünftige k-NN Treffer)."
+                f"**{len(df_save_candidates)} LLM mappings** with confidence ≥ {SAVE_CONF_THRESHOLD:.0%} "
+                "can be saved to history (improves future k-NN matches)."
             )
 
             if not st.session_state.show_save_confirm:
-                if st.button("📥 In History speichern"):
+                if st.button("📥 Save to History"):
                     st.session_state.show_save_confirm = True
                     st.rerun()
             else:
-                preview_cols = [c for c in ["Beschreibung", "final_code", "confidence"] if c in df_save_candidates.columns]
-                st.caption("Vorschau (max. 10 Zeilen):")
+                preview_cols = [c for c in ["Description", "final_code", "confidence"] if c in df_save_candidates.columns]
+                st.caption("Preview (max. 10 rows):")
                 st.dataframe(df_save_candidates[preview_cols].head(10))
-                st.caption(f"Gesamt: {len(df_save_candidates)} Zeilen werden an die History angehängt.")
+                st.caption(f"Total: {len(df_save_candidates)} rows will be appended to history.")
 
                 col_yes, col_no = st.columns([1, 1])
                 with col_yes:
-                    if st.button("✅ Bestätigen und speichern", type="primary"):
+                    if st.button("✅ Confirm and Save", type="primary"):
                         try:
-                            desc_col = "Beschreibung" if "Beschreibung" in df_save_candidates.columns else df_save_candidates.columns[0]
+                            desc_col = "Description" if "Description" in df_save_candidates.columns else df_save_candidates.columns[0]
                             rows_to_add = pd.DataFrame({
                                 "Description": df_save_candidates[desc_col].values,
                                 "AEB Event Code": df_save_candidates["final_code"].values,
@@ -561,10 +561,10 @@ if st.session_state.current_step >= 4:
                             st.cache_resource.clear()
 
                             st.session_state.show_save_confirm = False
-                            st.success(f"✅ {len(rows_to_add)} Zeilen gespeichert. Cache wird beim nächsten Run neu generiert.")
+                            st.success(f"✅ {len(rows_to_add)} rows saved. Cache will be regenerated on the next run.")
                         except Exception as e:
-                            st.error(f"Fehler beim Speichern: {e}")
+                            st.error(f"Error saving: {e}")
                 with col_no:
-                    if st.button("❌ Abbrechen"):
+                    if st.button("❌ Cancel"):
                         st.session_state.show_save_confirm = False
                         st.rerun()
