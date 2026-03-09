@@ -315,47 +315,66 @@ async def classify_single_row(async_client, row_text, candidates, hist_str, mode
                 text={"format": {"type": "json_object"}}
             )
             res = json.loads(resp.output_text)
-            return res.get("code")
+            raw_usage = {
+                "input_tokens": resp.usage.input_tokens,
+                "output_tokens": resp.usage.output_tokens,
+                "model": model_name,
+            }
+            return res.get("code"), raw_usage
         except Exception as e:
             print(f"LLM Error: {e}")
-            return None
+            return None, {"input_tokens": 0, "output_tokens": 0, "model": model_name}
 
 async def run_llm_batch_async(api_key, tasks_data, model_name, progress_callback=None):
     """
     tasks_data: List of dicts { 'index': int, 'text': str, 'candidates': list, 'hist_str': str }
     """
+    import time as _time
     async_client = AsyncOpenAI(api_key=api_key)
     semaphore = asyncio.Semaphore(15) # Max 15 concurrent requests
-    
+
     total = len(tasks_data)
     completed = 0
+    start_time = _time.monotonic()
     
     async def wrapped_classify(item):
         nonlocal completed
-        # Execute task
-        res = await classify_single_row(
-            async_client, 
-            item['text'], 
-            item['candidates'], 
-            item['hist_str'], 
-            model_name, 
+        code, raw_usage = await classify_single_row(
+            async_client,
+            item['text'],
+            item['candidates'],
+            item['hist_str'],
+            model_name,
             semaphore
         )
-        # Progress updaten
         completed += 1
         if progress_callback:
-            # Map progress from 0.7 to 0.99
+            elapsed = _time.monotonic() - start_time
+            rate = completed / elapsed if elapsed > 0 else 0
+            eta = (total - completed) / rate if rate > 0 else 0
             p = 0.7 + (0.29 * (completed / total))
-            progress_callback(p, f"LLM Batch: {completed}/{total} verarbeitet...")
-            
-        return res
+            progress_callback(
+                p,
+                f"LLM Batch: {completed}/{total} rows "
+                f"({rate:.1f} rows/s, ETA {eta:.0f}s)..."
+            )
+        return code, raw_usage
 
     tasks = []
     for item in tasks_data:
         tasks.append(wrapped_classify(item))
-        
-    results = await asyncio.gather(*tasks)
-    return results
+
+    pair_results = await asyncio.gather(*tasks)
+
+    results = [code for code, _ in pair_results]
+    total_input = sum(u["input_tokens"] for _, u in pair_results)
+    total_output = sum(u["output_tokens"] for _, u in pair_results)
+    aggregated_usage = {
+        "input_tokens": total_input,
+        "output_tokens": total_output,
+        "model": model_name,
+    }
+    return results, aggregated_usage
 
 def run_mapping_step4(client, df, model_name, threshold: float = 0.60, progress_callback=None, config=None):
     if df.empty: return df

@@ -120,3 +120,39 @@ def test_embed_texts_returns_tuple(mock_openai_client):
     assert raw_usage["model"] == "text-embedding-3-large"
     assert raw_usage["output_tokens"] == 0
     assert raw_usage["input_tokens"] == 30  # matches mock_usage.prompt_tokens=30 in conftest
+
+
+import asyncio
+
+
+def test_run_llm_batch_async_returns_tuple():
+    """run_llm_batch_async must return (results, raw_usage)."""
+    from backend.mapper import run_llm_batch_async
+    from codes import CODES
+
+    mock_usage_obj = Mock()
+    mock_usage_obj.input_tokens = 50
+    mock_usage_obj.output_tokens = 10
+
+    mock_resp = Mock()
+    mock_resp.output_text = '{"code": "' + CODES[0][0] + '", "reasoning": "test"}'
+    mock_resp.usage = mock_usage_obj
+
+    async def fake_create(**kwargs):
+        return mock_resp
+
+    tasks = [{"index": 0, "text": "test", "candidates": [], "hist_str": ""}]
+
+    with patch("backend.mapper.AsyncOpenAI") as mock_async_cls:
+        mock_async_client = Mock()
+        mock_async_client.responses.create = fake_create
+        mock_async_cls.return_value = mock_async_client
+
+        results, raw_usage = asyncio.run(
+            run_llm_batch_async("fake-key", tasks, "gpt-5-nano-2025-08-07")
+        )
+
+    assert len(results) == 1
+    assert raw_usage["input_tokens"] == 50
+    assert raw_usage["output_tokens"] == 10
+    assert raw_usage["model"] == "gpt-5-nano-2025-08-07"
