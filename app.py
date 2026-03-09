@@ -106,6 +106,36 @@ with st.sidebar:
         st.session_state.clear()
         st.rerun()
 
+    if st.session_state.get("costs"):
+        st.sidebar.markdown("---")
+        st.sidebar.markdown("**💰 Session Cost**")
+
+        step_labels = {
+            "step1_analysis":   "Step 1 – Analysis",
+            "step2_extraction": "Step 2 – Extraction",
+            "step3_transform":  "Step 3 – Transform",
+            "step4_embed":      "Step 4 – Embeddings",
+            "step4_llm":        "Step 4 – LLM Fallback",
+        }
+
+        total_cost = 0.0
+        for key, label in step_labels.items():
+            usage = st.session_state.costs.get(key)
+            if usage is None:
+                continue
+            total_cost += usage["cost_usd"]
+            in_tok = _format_tokens(usage["input_tokens"])
+            out_tok = _format_tokens(usage["output_tokens"])
+            model_short = usage["model"].split("-")[0] + "-" + usage["model"].split("-")[1] if "-" in usage["model"] else usage["model"]
+            if usage["output_tokens"] == 0:
+                tok_str = f"↑{in_tok}"
+            else:
+                tok_str = f"↑{in_tok} ↓{out_tok}"
+            st.sidebar.markdown(f"**{label}** `${usage['cost_usd']:.4f}`  \n`{tok_str} tokens`")
+
+        st.sidebar.markdown("---")
+        st.sidebar.markdown(f"**Total** `${total_cost:.4f}`")
+
     # --- DEBUG / TEST MODE ---
     with st.sidebar:
         st.markdown("---")
@@ -181,6 +211,7 @@ if "df_final" not in st.session_state: st.session_state.df_final = pd.DataFrame(
 if "show_save_confirm" not in st.session_state: st.session_state.show_save_confirm = False
 if "df_status_edit" not in st.session_state: st.session_state.df_status_edit = pd.DataFrame()
 if "df_reasons_edit" not in st.session_state: st.session_state.df_reasons_edit = pd.DataFrame()
+if "costs" not in st.session_state: st.session_state.costs = {}
 
 # =========================================================
 # STEP 0: UPLOAD
@@ -206,8 +237,9 @@ if st.session_state.raw_text:
         )
         if st.button("Continue to Step 1: Start Structural Analysis"):
             with st.spinner("Analyzing structure..."):
-                res = logic.analyze_structure_step1(client, st.session_state.raw_text, model_name=model_step1)
+                res, raw_usage = logic.analyze_structure_step1(client, st.session_state.raw_text, model_name=model_step1)
                 st.session_state.analysis_res = res
+                st.session_state.costs["step1_analysis"] = _make_usage(**raw_usage)
                 st.session_state.current_step = 1
                 st.rerun()
 
@@ -292,7 +324,7 @@ if st.session_state.current_step >= 1 and st.session_state.analysis_res:
                 else:
                     with st.spinner(f"Extracting data from {len(selected_stats)} sources..."):
                         # Pass the lists to Step 2
-                        ext_res = logic.extract_data_step2(
+                        ext_res, raw_usage = logic.extract_data_step2(
                             client,
                             st.session_state.raw_text,
                             selected_stats,
@@ -300,6 +332,7 @@ if st.session_state.current_step >= 1 and st.session_state.analysis_res:
                             model_name=model_step2
                         )
                         st.session_state.extraction_res = ext_res
+                        st.session_state.costs["step2_extraction"] = _make_usage(**raw_usage)
                         st.session_state.current_step = 2
                         st.rerun()
 
@@ -450,12 +483,13 @@ if st.session_state.current_step >= 3:
                         st.session_state.df_merged_backup = st.session_state.df_merged.copy()
 
                         # Apply transformation
-                        new_df = logic.apply_ai_transformation(
+                        new_df, raw_usage = logic.apply_ai_transformation(
                             client,
                             st.session_state.df_merged,
                             user_instruction,
                             model_name=model_step3_trans
                         )
+                        st.session_state.costs["step3_transform"] = _make_usage(**raw_usage)
 
                         # Check result
                         if new_df.equals(st.session_state.df_merged):
@@ -525,7 +559,7 @@ if st.session_state.current_step >= 3:
                         prog_bar.progress(p)
                         status_text.text(text)
 
-                    df_fin = logic.run_mapping_step4(
+                    df_fin, step4_usage = logic.run_mapping_step4(
                         client,
                         st.session_state.df_merged,
                         model_name=model_step4,
@@ -534,6 +568,9 @@ if st.session_state.current_step >= 3:
                         config={**MAPPER_CONFIG, "knn_threshold": knn_threshold}
                     )
                     st.session_state.df_final = df_fin
+                    for key, raw in step4_usage.items():
+                        if raw:
+                            st.session_state.costs[key] = _make_usage(**raw)
                     st.session_state.current_step = 4
                     st.rerun()
 
