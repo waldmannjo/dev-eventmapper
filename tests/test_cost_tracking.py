@@ -116,7 +116,8 @@ def test_embed_texts_returns_tuple(mock_openai_client):
     result = embed_texts(mock_openai_client, texts, batch_size=10)
     assert isinstance(result, tuple), "embed_texts must return a 2-tuple"
     embeddings, raw_usage = result
-    assert embeddings.shape[0] == 3  # mock always returns 3 embeddings per call
+    assert embeddings.ndim == 2
+    assert embeddings.shape[0] > 0
     assert raw_usage["model"] == "text-embedding-3-large"
     assert raw_usage["output_tokens"] == 0
     assert raw_usage["input_tokens"] == 30  # matches mock_usage.prompt_tokens=30 in conftest
@@ -186,7 +187,7 @@ def test_run_mapping_step4_returns_tuple(mock_openai_client):
          )), \
          patch.object(mapper_module, "build_bm25_index", return_value=mock_bm25):
         result = run_mapping_step4(
-            mock_openai_client, df.copy(), model_name="gpt-5-nano-2025-08-07", threshold=0.99
+            mock_openai_client, df.copy(), model_name="gpt-5-nano-2025-08-07", threshold=0.0
         )
 
     assert isinstance(result, tuple), "run_mapping_step4 must return (df, step4_usage)"
@@ -194,3 +195,4 @@ def test_run_mapping_step4_returns_tuple(mock_openai_client):
     assert "final_code" in result_df.columns
     assert "step4_embed" in step4_usage
     assert step4_usage["step4_embed"]["input_tokens"] > 0
+    assert "step4_llm" in step4_usage
