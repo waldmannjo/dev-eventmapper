@@ -98,4 +98,9 @@ def analyze_structure_step1(client, text: str, model_name: str = "gpt-4o"):
         input=user_prompt,
         text={"format": {"type": "json_object"}}
     )
-    return json.loads(response.output_text)
+    raw_usage = {
+        "input_tokens": response.usage.input_tokens,
+        "output_tokens": response.usage.output_tokens,
+        "model": model_name,
+    }
+    return json.loads(response.output_text), raw_usage
