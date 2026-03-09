@@ -108,3 +108,15 @@ def test_make_usage_combined_input_output():
     # gpt-4.1: input $2/1M, output $8/1M => 2+8 = $10 total
     result = _make_usage(1_000_000, 1_000_000, "gpt-4.1-2025-04-14")
     assert abs(result["cost_usd"] - 10.0) < 1e-9
+
+
+def test_embed_texts_returns_tuple(mock_openai_client):
+    from backend.mapper import embed_texts
+    texts = ["hello", "world"]
+    result = embed_texts(mock_openai_client, texts, batch_size=10)
+    assert isinstance(result, tuple), "embed_texts must return a 2-tuple"
+    embeddings, raw_usage = result
+    assert embeddings.shape[0] == 3  # mock always returns 3 embeddings per call
+    assert raw_usage["model"] == "text-embedding-3-large"
+    assert raw_usage["output_tokens"] == 0
+    assert raw_usage["input_tokens"] == 30  # matches mock_usage.prompt_tokens=30 in conftest

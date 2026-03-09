@@ -10,10 +10,13 @@ def test_embed_texts_with_dimensions(mock_openai_client):
     mock_embedding.embedding = np.random.rand(1024).tolist()
     mock_response = Mock()
     mock_response.data = [mock_embedding]
+    mock_usage = Mock()
+    mock_usage.prompt_tokens = 10
+    mock_response.usage = mock_usage
     mock_openai_client.embeddings.create.return_value = mock_response
 
     texts = ["test text"]
-    embeddings = embed_texts(mock_openai_client, texts, batch_size=10, dimensions=1024)
+    embeddings, _ = embed_texts(mock_openai_client, texts, batch_size=10, dimensions=1024)
 
     mock_openai_client.embeddings.create.assert_called_once()
     call_kwargs = mock_openai_client.embeddings.create.call_args[1]

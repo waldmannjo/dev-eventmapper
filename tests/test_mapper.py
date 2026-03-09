@@ -6,7 +6,7 @@ from backend.mapper import embed_texts, load_cross_encoder, CROSS_ENCODER_MODEL_
 def test_embed_texts_basic(mock_openai_client, sample_df):
     """Test basic embedding functionality."""
     texts = sample_df['Description'].tolist()
-    embeddings = embed_texts(mock_openai_client, texts, batch_size=10)
+    embeddings, _ = embed_texts(mock_openai_client, texts, batch_size=10)
 
     assert embeddings.shape[0] == len(texts)
     assert embeddings.shape[1] > 0  # Has embedding dimension

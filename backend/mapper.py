@@ -133,35 +133,40 @@ def load_cross_encoder():
     return CrossEncoder(CROSS_ENCODER_MODEL_NAME)
 
 def embed_texts(client, texts, batch_size=500, dimensions=None):
-    """Generates embeddings for a list of texts in batches."""
+    """Generates embeddings for a list of texts in batches.
+    Returns (embeddings: np.ndarray, raw_usage: dict)."""
     if not texts:
-        return np.array([])
+        return np.array([]), {"input_tokens": 0, "output_tokens": 0, "model": EMB_MODEL}
 
     if dimensions is None:
         dimensions = EMB_DIMENSIONS
 
     all_embeddings = []
+    total_prompt_tokens = 0
     total = len(texts)
 
     for i in range(0, total, batch_size):
         batch = texts[i : i + batch_size]
         try:
-            api_params = {
-                "model": EMB_MODEL,
-                "input": batch
-            }
+            api_params = {"model": EMB_MODEL, "input": batch}
             if dimensions:
                 api_params["dimensions"] = dimensions
 
             resp = client.embeddings.create(**api_params)
             batch_embeddings = [e.embedding for e in resp.data]
             all_embeddings.extend(batch_embeddings)
+            total_prompt_tokens += resp.usage.prompt_tokens
 
         except Exception as e:
             print(f"Embedding Error in batch {i}-{i+len(batch)}: {e}")
             raise e
 
-    return np.array(all_embeddings)
+    raw_usage = {
+        "input_tokens": total_prompt_tokens,
+        "output_tokens": 0,
+        "model": EMB_MODEL,
+    }
+    return np.array(all_embeddings), raw_usage
 
 CACHE_DIR = os.path.join(os.path.dirname(HISTORY_FILE))
 CACHE_EMBEDDINGS = os.path.join(CACHE_DIR, "history_embeddings.npy")
