@@ -156,3 +156,41 @@ def test_run_llm_batch_async_returns_tuple():
     assert raw_usage["input_tokens"] == 50
     assert raw_usage["output_tokens"] == 10
     assert raw_usage["model"] == "gpt-5-nano-2025-08-07"
+
+
+def test_run_mapping_step4_returns_tuple(mock_openai_client):
+    from backend.mapper import run_mapping_step4
+    import backend.mapper as mapper_module
+    from codes import CODES
+
+    df = pd.DataFrame({
+        "Statuscode": ["01"],
+        "Reasoncode": ["A"],
+        "Description": ["Package arrived at depot"],
+    })
+
+    n_codes = len(CODES)
+
+    def fake_embed(client, texts, batch_size=500, dimensions=None):
+        n = len(texts)
+        raw_usage = {"input_tokens": n * 5, "output_tokens": 0, "model": "text-embedding-3-large"}
+        return np.random.rand(n, 1024), raw_usage
+
+    mock_bm25 = Mock()
+    mock_bm25.get_scores.return_value = np.random.rand(n_codes)
+
+    with patch.object(mapper_module, "embed_texts", side_effect=fake_embed), \
+         patch.object(mapper_module, "load_history_examples", return_value=(None, None)), \
+         patch.object(mapper_module, "load_cross_encoder", return_value=Mock(
+             predict=lambda pairs: np.random.rand(len(pairs))
+         )), \
+         patch.object(mapper_module, "build_bm25_index", return_value=mock_bm25):
+        result = run_mapping_step4(
+            mock_openai_client, df.copy(), model_name="gpt-5-nano-2025-08-07", threshold=0.99
+        )
+
+    assert isinstance(result, tuple), "run_mapping_step4 must return (df, step4_usage)"
+    result_df, step4_usage = result
+    assert "final_code" in result_df.columns
+    assert "step4_embed" in step4_usage
+    assert step4_usage["step4_embed"]["input_tokens"] > 0

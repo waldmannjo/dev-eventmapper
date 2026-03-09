@@ -219,7 +219,7 @@ def load_history_examples(_client):
             f"Carrier shipment event: Description: {normalize_input(str(desc))}"
             for desc in df_hist['Description']
         ]
-        hist_vecs = embed_texts(_client, hist_texts, batch_size=500)
+        hist_vecs, _ = embed_texts(_client, hist_texts, batch_size=500)
 
         # Save to disk cache
         try:
@@ -377,7 +377,7 @@ async def run_llm_batch_async(api_key, tasks_data, model_name, progress_callback
     return results, aggregated_usage
 
 def run_mapping_step4(client, df, model_name, threshold: float = 0.60, progress_callback=None, config=None):
-    if df.empty: return df
+    if df.empty: return df, {"step4_embed": {"input_tokens": 0, "output_tokens": 0, "model": EMB_MODEL}, "step4_llm": None}
 
     # Merge config with defaults
     default_config = {
@@ -414,7 +414,8 @@ def run_mapping_step4(client, df, model_name, threshold: float = 0.60, progress_
 
     # 1. Embed Standard Codes
     code_texts = [f"Definition eines internen Sendungsstatus: {c[1]}. Details: {c[2]}" for c in CODES]
-    code_vecs = embed_texts(client, code_texts)
+    code_vecs, _embed_usage_codes = embed_texts(client, code_texts)
+    total_embed_input = _embed_usage_codes["input_tokens"]
 
     # 1.5. Build BM25 index
     if progress_callback: progress_callback(0.08, "Building BM25 index...")
@@ -439,7 +440,8 @@ def run_mapping_step4(client, df, model_name, threshold: float = 0.60, progress_
         input_texts.append(f"Carrier shipment event: {normalized_text}")
         raw_input_texts_for_ce.append(normalized_text)
 
-    q_vecs = embed_texts(client, input_texts)
+    q_vecs, _embed_usage_queries = embed_texts(client, input_texts)
+    total_embed_input += _embed_usage_queries["input_tokens"]
 
     # 3. Vectorized cosine similarity (all queries vs all codes at once)
     all_sims = cosine_similarity(q_vecs, code_vecs)  # (N, 31)
@@ -631,6 +633,7 @@ def run_mapping_step4(client, df, model_name, threshold: float = 0.60, progress_
     unsure_indices = df[unsure_mask].index
     total_unsure = len(unsure_indices)
 
+    llm_usage = None
     if total_unsure > 0:
         if progress_callback: progress_callback(0.7, f"Starting LLM batch processing for {total_unsure} rows...")
         
@@ -678,7 +681,7 @@ def run_mapping_step4(client, df, model_name, threshold: float = 0.60, progress_
         try:
             # Extract API Key safely
             api_key = client.api_key
-            results = asyncio.run(run_llm_batch_async(api_key, tasks_data, model_name, progress_callback))
+            results, llm_usage = asyncio.run(run_llm_batch_async(api_key, tasks_data, model_name, progress_callback))
             
             # Process Results
             for i, new_code in enumerate(results):
@@ -694,4 +697,12 @@ def run_mapping_step4(client, df, model_name, threshold: float = 0.60, progress_
             
     
     if progress_callback: progress_callback(1.0, "Fertig!")
-    return df
+    step4_usage = {
+        "step4_embed": {
+            "input_tokens": total_embed_input,
+            "output_tokens": 0,
+            "model": EMB_MODEL,
+        },
+        "step4_llm": llm_usage,
+    }
+    return df, step4_usage

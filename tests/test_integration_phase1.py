@@ -92,6 +92,9 @@ def test_phase1_full_pipeline():
             emb = Mock()
             emb.embedding = np.random.rand(3072).tolist()
             mock_resp.data.append(emb)
+        mock_usage = Mock()
+        mock_usage.prompt_tokens = n * 5
+        mock_resp.usage = mock_usage
         return mock_resp
 
     mock_client.embeddings.create.side_effect = _make_embeddings
@@ -99,7 +102,7 @@ def test_phase1_full_pipeline():
     # Use threshold=0.0 so LLM fallback is never triggered (all confidences >= 0)
     # Also patch load_history_examples to skip file loading
     with patch("backend.mapper.load_history_examples", return_value=(None, None)):
-        result_df = run_mapping_step4(
+        result_df, _ = run_mapping_step4(
             mock_client,
             df_input.copy(),
             model_name="gpt-4o-mini",

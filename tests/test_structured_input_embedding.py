@@ -35,15 +35,16 @@ def _capture_input_texts(df):
         call_count[0] += 1
         n = len(texts)
         dim = dimensions or 1024
+        raw_usage = {"input_tokens": n * 10, "output_tokens": 0, "model": "text-embedding-3-large"}
         if call_count[0] == 1:
             # First call: code_texts (one per CODES entry).  Return correct shape.
-            return np.random.rand(n, dim)
+            return np.random.rand(n, dim), raw_usage
         elif call_count[0] == 2:
             # Second call: input_texts (our query rows).  Capture and return.
             captured_input_texts[0] = list(texts)
-            return np.random.rand(n, dim)
+            return np.random.rand(n, dim), raw_usage
         # Subsequent calls shouldn't happen in unit tests, but just in case:
-        return np.random.rand(n, dim)
+        return np.random.rand(n, dim), raw_usage
 
     n_codes = len(CODES)
     mock_bm25 = Mock()
@@ -58,7 +59,7 @@ def _capture_input_texts(df):
              predict=lambda pairs: np.random.rand(len(pairs))
          )), \
          patch.object(mapper_module, "build_bm25_index", return_value=mock_bm25):
-        mapper_module.run_mapping_step4(
+        _result = mapper_module.run_mapping_step4(
             mock_client, df.copy(), model_name="gpt-4o-mini", threshold=0.99
         )
 
