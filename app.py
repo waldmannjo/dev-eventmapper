@@ -126,7 +126,6 @@ with st.sidebar:
             total_cost += usage["cost_usd"]
             in_tok = _format_tokens(usage["input_tokens"])
             out_tok = _format_tokens(usage["output_tokens"])
-            model_short = usage["model"].split("-")[0] + "-" + usage["model"].split("-")[1] if "-" in usage["model"] else usage["model"]
             if usage["output_tokens"] == 0:
                 tok_str = f"↑{in_tok}"
             else:
@@ -489,7 +488,7 @@ if st.session_state.current_step >= 3:
                             user_instruction,
                             model_name=model_step3_trans
                         )
-                        st.session_state.costs["step3_transform"] = _make_usage(**raw_usage)
+                        st.session_state.costs["step3_transform"] = _make_usage(**raw_usage)  # last transform wins
 
                         # Check result
                         if new_df.equals(st.session_state.df_merged):
@@ -570,6 +569,7 @@ if st.session_state.current_step >= 3:
                     st.session_state.df_final = df_fin
                     for key, raw in step4_usage.items():
                         if raw:
+                            # raw is already {"input_tokens", "output_tokens", "model"} — same signature as _make_usage expects
                             st.session_state.costs[key] = _make_usage(**raw)
                     st.session_state.current_step = 4
                     st.rerun()
