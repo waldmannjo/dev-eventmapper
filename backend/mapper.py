@@ -501,23 +501,37 @@ def run_mapping_step4(client, df, model_name, threshold: float = 0.60, progress_
         top_candidates_list.append(None)
 
     # Phase 2: Batched cross-encoder prediction
-    if all_ce_pairs:
+    ce_max_pairs = cfg.get("ce_max_pairs", 10000)
+    total_pairs = len(all_ce_pairs)
+    ce_skipped = total_pairs > ce_max_pairs
+
+    if all_ce_pairs and not ce_skipped:
         # Batch CE predictions in chunks to avoid OOM/segfault on large inputs
         CE_BATCH_SIZE = 2048
-        total_pairs = len(all_ce_pairs)
         n_chunks = max(1, (total_pairs + CE_BATCH_SIZE - 1) // CE_BATCH_SIZE)
         if progress_callback:
             progress_callback(0.45, f"Cross-Encoder Re-Ranking ({total_pairs} Paare, {n_chunks} Batches)...")
         if total_pairs <= CE_BATCH_SIZE:
             all_ce_scores = ce_model.predict(all_ce_pairs)
         else:
+            import time as _time
             score_chunks = []
+            ce_start = _time.monotonic()
+            pairs_done = 0
             for chunk_idx, j in enumerate(range(0, total_pairs, CE_BATCH_SIZE)):
                 chunk = all_ce_pairs[j:j + CE_BATCH_SIZE]
                 score_chunks.append(ce_model.predict(chunk))
+                pairs_done += len(chunk)
                 if progress_callback:
                     prog = 0.45 + 0.20 * ((chunk_idx + 1) / n_chunks)
-                    progress_callback(prog, f"Cross-Encoder Re-Ranking ({total_pairs} Paare) — Batch {chunk_idx + 1}/{n_chunks}...")
+                    elapsed = _time.monotonic() - ce_start
+                    rate = pairs_done / elapsed if elapsed > 0 else 0
+                    eta = (total_pairs - pairs_done) / rate if rate > 0 else 0
+                    progress_callback(
+                        prog,
+                        f"Cross-Encoder Re-Ranking — Batch {chunk_idx + 1}/{n_chunks} "
+                        f"({pairs_done}/{total_pairs} Paare, {rate:.0f} P/s, ETA {eta:.0f}s)"
+                    )
             all_ce_scores = np.concatenate(score_chunks)
 
         # Unpack batched results back to per-row scores
@@ -540,7 +554,6 @@ def run_mapping_step4(client, df, model_name, threshold: float = 0.60, progress_
             gap = max(sigmoid(best_score) - sigmoid(second_best_score), 0.0)
             conf = sigmoid(best_score) * (0.5 + 0.5 * min(gap / 0.15, 1.0))
 
-            # pred_codes[i] == i-th q_vec: every loop iteration appends exactly once
             pred_codes[i] = CODES[best_idx][0]
             conf_scores[i] = conf
             sources[i] = "emb+ce"
@@ -552,6 +565,36 @@ def run_mapping_step4(client, df, model_name, threshold: float = 0.60, progress_
                     "code": CODES[r_idx][0],
                     "desc": CODES[r_idx][1],
                     "score": float(sigmoid(reranked_scores[j]))
+                })
+            top_candidates_list[i] = candidates
+
+    elif all_ce_pairs and ce_skipped:
+        # CE skipped: too many pairs — use embedding+BM25 score directly
+        if progress_callback:
+            progress_callback(0.65, f"Cross-Encoder übersprungen ({total_pairs} Paare > Limit {ce_max_pairs}) — verwende Embedding-Score...")
+        offset = 0
+        for row_idx_in_loop, i in enumerate(non_knn_rows):
+            count = ce_pair_counts[row_idx_in_loop]
+            top_k_idx = top_k_indices_per_row[row_idx_in_loop]
+            offset += count
+
+            best_idx = top_k_idx[0]
+            best_sim = float(all_sims[i][best_idx])
+            second_sim = float(all_sims[i][top_k_idx[1]]) if len(top_k_idx) > 1 else 0.0
+            gap = max(best_sim - second_sim, 0.0)
+            conf = best_sim * (0.5 + 0.5 * min(gap / 0.15, 1.0))
+
+            pred_codes[i] = CODES[best_idx][0]
+            conf_scores[i] = conf
+            sources[i] = "emb"
+
+            candidates = []
+            for j in range(min(3, len(top_k_idx))):
+                r_idx = top_k_idx[j]
+                candidates.append({
+                    "code": CODES[r_idx][0],
+                    "desc": CODES[r_idx][1],
+                    "score": float(all_sims[i][r_idx])
                 })
             top_candidates_list[i] = candidates
 

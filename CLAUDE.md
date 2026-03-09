@@ -8,6 +8,7 @@
 
 ```bash
 .\venv\Scripts\activate        # Windows (venv required - system Python lacks ML deps)
+source venv/bin/activate        # Linux/Mac
 streamlit run app.py           # Run the app
 pip install -r requirements.txt # Install deps
 pytest tests/ -v               # Run tests (22 tests, ~30s)

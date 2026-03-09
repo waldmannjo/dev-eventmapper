@@ -1,9 +1,12 @@
 import os
+from dotenv import load_dotenv
+load_dotenv()
 # GLOBAL FIX: Disable SSL Verify for Corporate Proxy / Self-Signed Certs
 os.environ["HF_HUB_DISABLE_SSL_VERIFY"] = "1"
 os.environ["CURL_CA_BUNDLE"] = ""
 os.environ["REQUESTS_CA_BUNDLE"] = ""
 os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"
+os.environ["HF_HUB_DISABLE_IMPLICIT_TOKEN"] = "1"
 
 import ssl
 # Patch default SSL context to skip verification (corporate proxy)
@@ -52,6 +55,7 @@ MAPPER_CONFIG = {
     "top_k_prefilter": 10,
     "embedding_weight": 0.7,
     "bm25_weight": 0.3,
+    "ce_max_pairs": 10000,
 }
 
 def format_model_option(model_key):
@@ -62,7 +66,7 @@ def format_model_option(model_key):
 
 # --- Sidebar ---
 with st.sidebar:
-    api_key = st.text_input("OpenAI API Key", type="password")
+    api_key = st.text_input("OpenAI API Key", type="password", value=os.getenv("OPENAI_API_KEY", ""))
     if api_key:
         client = OpenAI(api_key=api_key)
     else:
