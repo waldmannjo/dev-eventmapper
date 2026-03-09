@@ -147,8 +147,14 @@ def apply_ai_transformation(client, df: pd.DataFrame, instruction: str, model_na
         local_vars = {"df": df.copy(), "pd": pd, "np": np}
         exec(code, {}, local_vars)
         
-        return local_vars["df"]
-        
+        raw_usage = {
+            "input_tokens": response.usage.input_tokens,
+            "output_tokens": response.usage.output_tokens,
+            "model": model_name,
+        }
+        return local_vars["df"], raw_usage
+
     except Exception as e:
         print(f"Error during transformation: {e}")
-        return df  # Return original on error
+        raw_usage = {"input_tokens": 0, "output_tokens": 0, "model": model_name}
+        return df, raw_usage
