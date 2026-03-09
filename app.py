@@ -28,7 +28,7 @@ from openai import OpenAI
 import backend as logic  # <-- Our new backend module
 from backend.mapper import HISTORY_FILE, CACHE_EMBEDDINGS, CACHE_DF, CACHE_META
 
-VERSION = "0.4.0"
+VERSION = "0.5.0"
 
 st.set_page_config(page_title="Eventmapper", layout="wide")
 st.title("Eventmapper")
@@ -158,6 +158,9 @@ with st.sidebar:
     st.caption(f"Eventmapper v{VERSION}")
 
     CHANGELOG = {
+        "0.5.0": [
+            "Cost transparency — sidebar shows token usage and estimated USD cost per step",
+        ],
         "0.4.0": [
             "Save to History button — append confirmed LLM mappings to history for future k-NN use",
             "k-NN threshold slider — tune history match strictness per document (0.80–0.99)",
