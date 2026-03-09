@@ -67,7 +67,12 @@ def extract_data_step2(client, text: str, status_scope: list, reason_scope: list
         input=user_prompt,
         text={"format": {"type": "json_object"}}
     )
-    return json.loads(response.output_text)
+    raw_usage = {
+        "input_tokens": response.usage.input_tokens,
+        "output_tokens": response.usage.output_tokens,
+        "model": model_name,
+    }
+    return json.loads(response.output_text), raw_usage
 
 def preview_csv_string(csv_str):
     """Helper function: converts CSV string to DataFrame for preview."""
