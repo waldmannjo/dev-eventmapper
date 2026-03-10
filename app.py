@@ -320,6 +320,9 @@ if st.session_state.current_step >= 1 and st.session_state.analysis_res:
                     st.warning("No rows selected.")
                     st.stop()
                 remaining = edited_stat[~edited_stat["_select"]].drop(columns=["_select"])
+                if remaining.empty:
+                    st.error("At least one status source must remain.")
+                    st.stop()
                 remaining.insert(0, "_select", False)
                 to_move_with_sel = to_move.copy()
                 to_move_with_sel.insert(0, "_select", False)
