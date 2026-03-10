@@ -260,6 +260,13 @@ if st.session_state.raw_text:
                 try:
                     res, raw_usage = logic.analyze_structure_step1(client, st.session_state.raw_text, model_name=model_step1)
                     st.session_state.analysis_res = res
+                    st.session_state.stat_candidates_df = _candidates_to_df(res.get("status_candidates", []))
+                    st.session_state.reas_candidates_df = _candidates_to_df(res.get("reason_candidates", []))
+                    if st.session_state.stat_candidates_df.empty and "Statuscode" in res:
+                        fallback_name = res["Statuscode"].get("Bezeichnung_im_Dokument", "Default")
+                        st.session_state.stat_candidates_df = _candidates_to_df(
+                            [{"name": fallback_name, "description": "Automatically detected"}]
+                        )
                     st.session_state.costs["step1_analysis"] = _make_usage(**raw_usage)
                     st.session_state.current_step = 1
                     st.rerun()
