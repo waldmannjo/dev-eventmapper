@@ -290,6 +290,15 @@ if st.session_state.current_step >= 1 and st.session_state.analysis_res:
     st.divider()
     st.header("Step 1: Source Selection")
 
+    # Guard: initialize candidate dfs if missing (e.g. session from before this feature)
+    if "stat_candidates_df" not in st.session_state:
+        res = st.session_state.analysis_res
+        _stat = res.get("status_candidates", [])
+        if not _stat and "Statuscode" in res:
+            _stat = [{"name": res["Statuscode"].get("Bezeichnung_im_Dokument", "Default"), "description": "Automatically detected"}]
+        st.session_state.stat_candidates_df = _candidates_to_df(_stat)
+        st.session_state.reas_candidates_df = _candidates_to_df(res.get("reason_candidates", []))
+
     col1, col2 = st.columns(2)
 
     # 2. UI for status codes
