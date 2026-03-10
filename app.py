@@ -24,7 +24,7 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 import streamlit as st
 import pandas as pd
-from openai import OpenAI
+from openai import OpenAI, AuthenticationError, RateLimitError, APIConnectionError, APIStatusError
 import backend as logic  # <-- Our new backend module
 from backend.mapper import HISTORY_FILE, CACHE_EMBEDDINGS, CACHE_DF, CACHE_META
 
@@ -69,6 +69,24 @@ def _format_tokens(n: int) -> str:
     if n > 999:
         return f"{n / 1000:.1f}k"
     return str(n)
+
+
+def _candidates_to_df(candidates):
+    """Convert list of candidate dicts to a DataFrame for st.data_editor."""
+    rows = [
+        {
+            "_select": False,
+            "name": c["name"],
+            "description": c.get("description", ""),
+            "context": c.get("context", ""),
+        }
+        for c in candidates
+    ]
+    return (
+        pd.DataFrame(rows)
+        if rows
+        else pd.DataFrame(columns=["_select", "name", "description", "context"])
+    )
 
 
 # Mapper Configuration (Phase 1 improvements)
@@ -239,11 +257,24 @@ if st.session_state.raw_text:
         )
         if st.button("Continue to Step 1: Start Structural Analysis"):
             with st.spinner("Analyzing structure..."):
-                res, raw_usage = logic.analyze_structure_step1(client, st.session_state.raw_text, model_name=model_step1)
-                st.session_state.analysis_res = res
-                st.session_state.costs["step1_analysis"] = _make_usage(**raw_usage)
-                st.session_state.current_step = 1
-                st.rerun()
+                try:
+                    res, raw_usage = logic.analyze_structure_step1(client, st.session_state.raw_text, model_name=model_step1)
+                    st.session_state.analysis_res = res
+                    st.session_state.costs["step1_analysis"] = _make_usage(**raw_usage)
+                    st.session_state.current_step = 1
+                    st.rerun()
+                except AuthenticationError:
+                    st.error("Invalid OpenAI API key. Please check your key and try again.")
+                except RateLimitError as e:
+                    msg = str(e)
+                    if "insufficient_quota" in msg:
+                        st.error("Your OpenAI account has exceeded its quota. Please check your plan and billing at platform.openai.com.")
+                    else:
+                        st.error("OpenAI rate limit reached. Please wait a moment and try again.")
+                except APIConnectionError:
+                    st.error("Could not connect to OpenAI. Please check your network connection.")
+                except APIStatusError as e:
+                    st.error(f"OpenAI API error {e.status_code}: {e.message}")
 
 # =========================================================
 # STEP 1: ANALYSIS RESULT
@@ -326,17 +357,30 @@ if st.session_state.current_step >= 1 and st.session_state.analysis_res:
                 else:
                     with st.spinner(f"Extracting data from {len(selected_stats)} sources..."):
                         # Pass the lists to Step 2
-                        ext_res, raw_usage = logic.extract_data_step2(
-                            client,
-                            st.session_state.raw_text,
-                            selected_stats,
-                            selected_reas,
-                            model_name=model_step2
-                        )
-                        st.session_state.extraction_res = ext_res
-                        st.session_state.costs["step2_extraction"] = _make_usage(**raw_usage)
-                        st.session_state.current_step = 2
-                        st.rerun()
+                        try:
+                            ext_res, raw_usage = logic.extract_data_step2(
+                                client,
+                                st.session_state.raw_text,
+                                selected_stats,
+                                selected_reas,
+                                model_name=model_step2
+                            )
+                            st.session_state.extraction_res = ext_res
+                            st.session_state.costs["step2_extraction"] = _make_usage(**raw_usage)
+                            st.session_state.current_step = 2
+                            st.rerun()
+                        except AuthenticationError:
+                            st.error("Invalid OpenAI API key. Please check your key and try again.")
+                        except RateLimitError as e:
+                            msg = str(e)
+                            if "insufficient_quota" in msg:
+                                st.error("Your OpenAI account has exceeded its quota. Please check your plan and billing at platform.openai.com.")
+                            else:
+                                st.error("OpenAI rate limit reached. Please wait a moment and try again.")
+                        except APIConnectionError:
+                            st.error("Could not connect to OpenAI. Please check your network connection.")
+                        except APIStatusError as e:
+                            st.error(f"OpenAI API error {e.status_code}: {e.message}")
 
 # =========================================================
 # STEP 2: EXTRACTION INTERMEDIATE RESULT
@@ -484,22 +528,35 @@ if st.session_state.current_step >= 3:
                         # Save old state (light undo function)
                         st.session_state.df_merged_backup = st.session_state.df_merged.copy()
 
-                        # Apply transformation
-                        new_df, raw_usage = logic.apply_ai_transformation(
-                            client,
-                            st.session_state.df_merged,
-                            user_instruction,
-                            model_name=model_step3_trans
-                        )
-                        st.session_state.costs["step3_transform"] = _make_usage(**raw_usage)  # last transform wins
+                        try:
+                            # Apply transformation
+                            new_df, raw_usage = logic.apply_ai_transformation(
+                                client,
+                                st.session_state.df_merged,
+                                user_instruction,
+                                model_name=model_step3_trans
+                            )
+                            st.session_state.costs["step3_transform"] = _make_usage(**raw_usage)  # last transform wins
 
-                        # Check result
-                        if new_df.equals(st.session_state.df_merged):
-                            st.warning("The AI made no changes (code may be faulty or condition not met).")
-                        else:
-                            st.session_state.df_merged = new_df
-                            st.success("Transformation applied!")
-                            st.rerun()
+                            # Check result
+                            if new_df.equals(st.session_state.df_merged):
+                                st.warning("The AI made no changes (code may be faulty or condition not met).")
+                            else:
+                                st.session_state.df_merged = new_df
+                                st.success("Transformation applied!")
+                                st.rerun()
+                        except AuthenticationError:
+                            st.error("Invalid OpenAI API key. Please check your key and try again.")
+                        except RateLimitError as e:
+                            msg = str(e)
+                            if "insufficient_quota" in msg:
+                                st.error("Your OpenAI account has exceeded its quota. Please check your plan and billing at platform.openai.com.")
+                            else:
+                                st.error("OpenAI rate limit reached. Please wait a moment and try again.")
+                        except APIConnectionError:
+                            st.error("Could not connect to OpenAI. Please check your network connection.")
+                        except APIStatusError as e:
+                            st.error(f"OpenAI API error {e.status_code}: {e.message}")
 
             if st.button("↩️ Undo Last Change"):
                 if "df_merged_backup" in st.session_state:
@@ -561,21 +618,34 @@ if st.session_state.current_step >= 3:
                         prog_bar.progress(p)
                         status_text.text(text)
 
-                    df_fin, step4_usage = logic.run_mapping_step4(
-                        client,
-                        st.session_state.df_merged,
-                        model_name=model_step4,
-                        threshold=threshold,
-                        progress_callback=update_progress,
-                        config={**MAPPER_CONFIG, "knn_threshold": knn_threshold}
-                    )
-                    st.session_state.df_final = df_fin
-                    for key, raw in step4_usage.items():
-                        if raw:
-                            # raw is already {"input_tokens", "output_tokens", "model"} — same signature as _make_usage expects
-                            st.session_state.costs[key] = _make_usage(**raw)
-                    st.session_state.current_step = 4
-                    st.rerun()
+                    try:
+                        df_fin, step4_usage = logic.run_mapping_step4(
+                            client,
+                            st.session_state.df_merged,
+                            model_name=model_step4,
+                            threshold=threshold,
+                            progress_callback=update_progress,
+                            config={**MAPPER_CONFIG, "knn_threshold": knn_threshold}
+                        )
+                        st.session_state.df_final = df_fin
+                        for key, raw in step4_usage.items():
+                            if raw:
+                                # raw is already {"input_tokens", "output_tokens", "model"} — same signature as _make_usage expects
+                                st.session_state.costs[key] = _make_usage(**raw)
+                        st.session_state.current_step = 4
+                        st.rerun()
+                    except AuthenticationError:
+                        st.error("Invalid OpenAI API key. Please check your key and try again.")
+                    except RateLimitError as e:
+                        msg = str(e)
+                        if "insufficient_quota" in msg:
+                            st.error("Your OpenAI account has exceeded its quota. Please check your plan and billing at platform.openai.com.")
+                        else:
+                            st.error("OpenAI rate limit reached. Please wait a moment and try again.")
+                    except APIConnectionError:
+                        st.error("Could not connect to OpenAI. Please check your network connection.")
+                    except APIStatusError as e:
+                        st.error(f"OpenAI API error {e.status_code}: {e.message}")
 
 # =========================================================
 # STEP 4: FINAL RESULT
