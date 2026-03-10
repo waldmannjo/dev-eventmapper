@@ -290,58 +290,72 @@ if st.session_state.current_step >= 1 and st.session_state.analysis_res:
     st.divider()
     st.header("Step 1: Source Selection")
 
-    res = st.session_state.analysis_res
-
-    # 1. Get candidates from JSON
-    stat_candidates = res.get("status_candidates", [])
-    reas_candidates = res.get("reason_candidates", [])
-
-    # Fallback for old structure (in case JSON looks different)
-    if not stat_candidates and "Statuscode" in res:
-        stat_candidates = [{"name": res["Statuscode"].get("Bezeichnung_im_Dokument", "Default"), "description": "Automatically detected"}]
-
     col1, col2 = st.columns(2)
 
-    # 2. UI for status codes (Multiselect)
+    # 2. UI for status codes
     with col1:
         st.subheader("Status Code Sources")
-        if stat_candidates:
-            # Create list of names for the UI
-            stat_options = [c["name"] for c in stat_candidates]
-            # Select all by default
-            selected_stats = st.multiselect(
-                "Which tables to use?",
-                options=stat_options,
-                default=stat_options,
-                help="Select whether to use Table 8, Table 9, or both."
+        if not st.session_state.stat_candidates_df.empty:
+            edited_stat = st.data_editor(
+                st.session_state.stat_candidates_df,
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "_select": st.column_config.CheckboxColumn("Move", default=False)
+                },
+                key="stat_candidates_editor",
             )
-            # Show candidate details
-            for c in stat_candidates:
-                with st.expander(f"📋 {c['name']}", expanded=True):
-                    if c.get("context"):
-                        st.caption(f"📍 Location: {c['context']}")
-                    if c.get("description"):
-                        st.write(c["description"])
+            if st.button("Move to Reason \u2192", key="move_to_reason"):
+                to_move = edited_stat[edited_stat["_select"]].drop(columns=["_select"])
+                if to_move.empty:
+                    st.warning("No rows selected.")
+                    st.stop()
+                remaining = edited_stat[~edited_stat["_select"]].drop(columns=["_select"])
+                remaining.insert(0, "_select", False)
+                to_move_with_sel = to_move.copy()
+                to_move_with_sel.insert(0, "_select", False)
+                current_reas = st.session_state.reas_candidates_df.copy()
+                st.session_state.stat_candidates_df = remaining.reset_index(drop=True)
+                st.session_state.reas_candidates_df = pd.concat(
+                    [current_reas, to_move_with_sel], ignore_index=True
+                )
+                st.rerun()
         else:
             st.warning("No status tables found.")
-            selected_stats = []
 
     # 3. UI for reason codes
     with col2:
         st.subheader("Reason Code Sources")
-        if reas_candidates:
-            reas_options = [c["name"] for c in reas_candidates]
-            selected_reas = st.multiselect("Which tables to use?", options=reas_options, default=reas_options)
-            # Show candidate details
-            for c in reas_candidates:
-                with st.expander(f"📋 {c['name']}", expanded=False):
-                    if c.get("context"):
-                        st.caption(f"📍 Location: {c['context']}")
-                    if c.get("description"):
-                        st.write(c["description"])
+        if not st.session_state.reas_candidates_df.empty:
+            edited_reas = st.data_editor(
+                st.session_state.reas_candidates_df,
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "_select": st.column_config.CheckboxColumn("Move", default=False)
+                },
+                key="reas_candidates_editor",
+            )
+            if st.button("\u2190 Move to Status", key="move_to_status"):
+                to_move = edited_reas[edited_reas["_select"]].drop(columns=["_select"])
+                if to_move.empty:
+                    st.warning("No rows selected.")
+                    st.stop()
+                remaining = edited_reas[~edited_reas["_select"]].drop(columns=["_select"])
+                remaining.insert(0, "_select", False)
+                to_move_with_sel = to_move.copy()
+                to_move_with_sel.insert(0, "_select", False)
+                current_stat = st.session_state.stat_candidates_df.copy()
+                st.session_state.reas_candidates_df = remaining.reset_index(drop=True)
+                st.session_state.stat_candidates_df = pd.concat(
+                    [current_stat, to_move_with_sel], ignore_index=True
+                )
+                st.rerun()
         else:
             st.info("No reason codes found.")
-            selected_reas = []
+
+    selected_stats = st.session_state.stat_candidates_df["name"].tolist()
+    selected_reas = st.session_state.reas_candidates_df["name"].tolist()
 
     if st.session_state.current_step == 1:
         # Button checks whether a selection was made
