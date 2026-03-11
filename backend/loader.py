@@ -1,4 +1,6 @@
 import io
+import json
+import requests
 import pandas as pd
 
 def extract_text_from_file(uploaded_file):
@@ -32,3 +34,11 @@ def extract_text_from_file(uploaded_file):
 
     # Optional: increase limit if there are many sheets
     return text[:100000]
+
+
+def fetch_text_from_url(url: str) -> str:
+    """Fetches JSON from a public URL and returns pretty-printed text (max 100k chars)."""
+    resp = requests.get(url, verify=False, timeout=30)
+    resp.raise_for_status()
+    data = resp.json()
+    return json.dumps(data, indent=2, ensure_ascii=False)[:100_000]
