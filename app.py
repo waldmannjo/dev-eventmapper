@@ -315,11 +315,12 @@ if st.session_state.current_step >= 1 and st.session_state.analysis_res:
                 key="stat_candidates_editor",
             )
             if st.button("Move to Reason \u2192", key="move_to_reason"):
-                to_move = edited_stat[edited_stat["_select"]].drop(columns=["_select"])
+                sel = edited_stat["_select"].astype(bool)
+                to_move = edited_stat[sel].drop(columns=["_select"])
                 if to_move.empty:
                     st.warning("No rows selected.")
                     st.stop()
-                remaining = edited_stat[~edited_stat["_select"]].drop(columns=["_select"])
+                remaining = edited_stat[~sel].drop(columns=["_select"])
                 if remaining.empty:
                     st.error("At least one status source must remain.")
                     st.stop()
@@ -349,11 +350,12 @@ if st.session_state.current_step >= 1 and st.session_state.analysis_res:
                 key="reas_candidates_editor",
             )
             if st.button("\u2190 Move to Status", key="move_to_status"):
-                to_move = edited_reas[edited_reas["_select"]].drop(columns=["_select"])
+                sel = edited_reas["_select"].astype(bool)
+                to_move = edited_reas[sel].drop(columns=["_select"])
                 if to_move.empty:
                     st.warning("No rows selected.")
                     st.stop()
-                remaining = edited_reas[~edited_reas["_select"]].drop(columns=["_select"])
+                remaining = edited_reas[~sel].drop(columns=["_select"])
                 remaining.insert(0, "_select", False)
                 to_move_with_sel = to_move.copy()
                 to_move_with_sel.insert(0, "_select", False)
@@ -449,11 +451,12 @@ if st.session_state.current_step >= 2 and st.session_state.extraction_res:
                 },
             )
             if st.button("Move to Reason \u2192"):
-                to_move = edited_status[edited_status["_select"]].drop(columns=["_select"])
+                sel = edited_status["_select"].astype(bool)
+                to_move = edited_status[sel].drop(columns=["_select"])
                 if to_move.empty:
                     st.warning("No rows selected.")
                     st.stop()
-                remaining = edited_status[~edited_status["_select"]].drop(columns=["_select"])
+                remaining = edited_status[~sel].drop(columns=["_select"])
                 if remaining.empty:
                     st.error("Status table must not be empty.")
                 else:
@@ -479,11 +482,12 @@ if st.session_state.current_step >= 2 and st.session_state.extraction_res:
                 },
             )
             if st.button("\u2190 Move to Status"):
-                to_move = edited_reasons[edited_reasons["_select"]].drop(columns=["_select"])
+                sel = edited_reasons["_select"].astype(bool)
+                to_move = edited_reasons[sel].drop(columns=["_select"])
                 if to_move.empty:
                     st.warning("No rows selected.")
                     st.stop()
-                remaining = edited_reasons[~edited_reasons["_select"]].drop(columns=["_select"])
+                remaining = edited_reasons[~sel].drop(columns=["_select"])
                 remaining.insert(0, "_select", False)
                 to_move_with_sel = to_move.copy()
                 to_move_with_sel.insert(0, "_select", False)
