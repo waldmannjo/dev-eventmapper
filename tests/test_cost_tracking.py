@@ -63,6 +63,7 @@ _st.progress = _noop
 _st.expander = _ctx
 _st.popover = _ctx
 _st.columns = lambda n, **kw: [_CtxNS() for _ in range(n if isinstance(n, int) else len(n))]
+_st.tabs = lambda labels, **kw: [_CtxNS() for _ in labels]
 _st.data_editor = _df
 _st.dataframe = _noop
 _st.empty = _ctx

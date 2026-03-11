@@ -237,14 +237,32 @@ if "costs" not in st.session_state: st.session_state.costs = {}
 # STEP 0: UPLOAD
 # =========================================================
 st.header("Step 0: Document Upload")
-uploaded_file = st.file_uploader("Upload file", type=["pdf", "xlsx", "csv", "txt"])
 
-if uploaded_file and not st.session_state.raw_text:
-    with st.spinner("Reading file..."):
-        text = logic.extract_text_from_file(uploaded_file)
-        st.session_state.raw_text = text
-        st.success(f"Text extracted ({len(text)} characters).")
-        st.session_state.current_step = 0
+_tab_file, _tab_url = st.tabs(["📄 Upload File", "🔗 Enter URL"])
+
+with _tab_file:
+    uploaded_file = st.file_uploader("Upload file", type=["pdf", "xlsx", "csv", "txt"])
+    if uploaded_file and not st.session_state.raw_text:
+        with st.spinner("Reading file..."):
+            text = logic.extract_text_from_file(uploaded_file)
+            st.session_state.raw_text = text
+            st.success(f"Text extracted ({len(text)} characters).")
+            st.session_state.current_step = 0
+
+with _tab_url:
+    _url_input = st.text_input("JSON URL", placeholder="https://api.example.com/translations.json")
+    if st.button("Load URL"):
+        if not _url_input.strip():
+            st.error("Please enter a URL.")
+        else:
+            with st.spinner("Fetching JSON from URL..."):
+                try:
+                    text = logic.fetch_text_from_url(_url_input.strip())
+                    st.session_state.raw_text = text
+                    st.success(f"JSON loaded ({len(text)} characters).")
+                    st.session_state.current_step = 0
+                except Exception as e:
+                    st.error(f"Failed to load URL: {e}")
 
 if st.session_state.raw_text:
     if st.session_state.current_step == 0:
