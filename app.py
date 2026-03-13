@@ -273,10 +273,22 @@ if st.session_state.raw_text:
             index=0,
             key="model_step1"
         )
+        with st.expander("⚙️ Advanced Options (Step 1)"):
+            st.text_area(
+                "Additional Instructions for Analysis",
+                placeholder="e.g. Ignore Table 3. Focus only on EDIFACT scan codes.",
+                height=100,
+                key="step1_extra_instructions",
+            )
         if st.button("Continue to Step 1: Start Structural Analysis"):
             with st.spinner("Analyzing structure..."):
                 try:
-                    res, raw_usage = logic.analyze_structure_step1(client, st.session_state.raw_text, model_name=model_step1)
+                    res, raw_usage = logic.analyze_structure_step1(
+                        client,
+                        st.session_state.raw_text,
+                        model_name=model_step1,
+                        extra_instructions=st.session_state.get("step1_extra_instructions", ""),
+                    )
                     st.session_state.analysis_res = res
                     st.session_state.stat_candidates_df = _candidates_to_df(res.get("status_candidates", []))
                     st.session_state.reas_candidates_df = _candidates_to_df(res.get("reason_candidates", []))
