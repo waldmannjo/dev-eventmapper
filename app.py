@@ -86,6 +86,7 @@ def _candidates_to_df(candidates):
     if rows:
         return pd.DataFrame(rows)
     empty = pd.DataFrame(columns=["_select", "_include", "name", "description", "context"])
+    empty["_select"] = empty["_select"].astype(bool)
     empty["_include"] = empty["_include"].astype(bool)
     return empty
 
