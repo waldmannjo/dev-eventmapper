@@ -115,7 +115,7 @@ def format_model_option(model_key):
 
 # --- Sidebar ---
 with st.sidebar:
-    api_key = st.text_input("OpenAI API Key", type="password", value=os.getenv("OPENAI_API_KEY", ""))
+    api_key = st.text_input("OpenAI API Key", type="password")
     if api_key:
         client = OpenAI(api_key=api_key)
     else:
