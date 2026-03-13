@@ -331,6 +331,9 @@ if st.session_state.current_step >= 1 and st.session_state.analysis_res:
         st.session_state.stat_candidates_df = _candidates_to_df(_stat)
         st.session_state.reas_candidates_df = _candidates_to_df(res.get("reason_candidates", []))
 
+    edited_stat = st.session_state.stat_candidates_df
+    edited_reas = st.session_state.reas_candidates_df
+
     col1, col2 = st.columns(2)
 
     # 2. UI for status codes
@@ -342,7 +345,8 @@ if st.session_state.current_step >= 1 and st.session_state.analysis_res:
                 use_container_width=True,
                 hide_index=True,
                 column_config={
-                    "_select": st.column_config.CheckboxColumn("Move", default=False)
+                    "_select": st.column_config.CheckboxColumn("Move", default=False),
+                    "_include": st.column_config.CheckboxColumn("Include", default=True),
                 },
                 key="stat_candidates_editor",
             )
@@ -377,7 +381,8 @@ if st.session_state.current_step >= 1 and st.session_state.analysis_res:
                 use_container_width=True,
                 hide_index=True,
                 column_config={
-                    "_select": st.column_config.CheckboxColumn("Move", default=False)
+                    "_select": st.column_config.CheckboxColumn("Move", default=False),
+                    "_include": st.column_config.CheckboxColumn("Include", default=True),
                 },
                 key="reas_candidates_editor",
             )
@@ -400,8 +405,8 @@ if st.session_state.current_step >= 1 and st.session_state.analysis_res:
         else:
             st.info("No reason codes found.")
 
-    selected_stats = st.session_state.stat_candidates_df["name"].tolist()
-    selected_reas = st.session_state.reas_candidates_df["name"].tolist()
+    selected_stats = edited_stat[edited_stat["_include"]]["name"].tolist()
+    selected_reas = edited_reas[edited_reas["_include"]]["name"].tolist()
 
     if st.session_state.current_step == 1:
         # Button checks whether a selection was made
