@@ -76,17 +76,18 @@ def _candidates_to_df(candidates):
     rows = [
         {
             "_select": False,
+            "_include": True,
             "name": c["name"],
             "description": c.get("description", ""),
             "context": c.get("context", ""),
         }
         for c in candidates
     ]
-    return (
-        pd.DataFrame(rows)
-        if rows
-        else pd.DataFrame(columns=["_select", "name", "description", "context"])
-    )
+    if rows:
+        return pd.DataFrame(rows)
+    empty = pd.DataFrame(columns=["_select", "_include", "name", "description", "context"])
+    empty["_include"] = empty["_include"].astype(bool)
+    return empty
 
 
 # Mapper Configuration (Phase 1 improvements)

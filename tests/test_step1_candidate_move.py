@@ -10,7 +10,7 @@ from app import _candidates_to_df
 def test_candidates_to_df_columns():
     candidates = [{"name": "Table 1", "description": "Status codes", "context": "Page 2"}]
     df = _candidates_to_df(candidates)
-    assert list(df.columns) == ["_select", "name", "description", "context"]
+    assert list(df.columns) == ["_select", "_include", "name", "description", "context"]
     assert df.iloc[0]["name"] == "Table 1"
     assert df.iloc[0]["_select"] == False
 
@@ -18,7 +18,7 @@ def test_candidates_to_df_columns():
 def test_candidates_to_df_empty():
     df = _candidates_to_df([])
     assert df.empty
-    assert list(df.columns) == ["_select", "name", "description", "context"]
+    assert list(df.columns) == ["_select", "_include", "name", "description", "context"]
 
 
 def test_candidates_to_df_missing_optional_fields():
