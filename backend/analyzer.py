@@ -12,7 +12,7 @@ from backend.synonyms import (
     REASON_SYNONYMS_COLUMNS
 )
 
-def analyze_structure_step1(client, text: str, model_name: str = "gpt-4o"):
+def analyze_structure_step1(client, text: str, model_name: str = "gpt-4o", extra_instructions: str = ""):
     system_prompt = "You are a data analysis expert. Reply exclusively with valid JSON."
 
     # Prepare synonym lists for the prompt
@@ -88,9 +88,11 @@ def analyze_structure_step1(client, text: str, model_name: str = "gpt-4o"):
     - Have I correctly split set structures (SE + Additional) into status vs. reason?
     - Are reason_candidates truly [] when nothing was found?
 
-    Document:
-    {text}
     """
+
+    if extra_instructions.strip():
+        user_prompt += f"\n# Additional Instructions\n{extra_instructions.strip()}\n"
+    user_prompt += f"\nDocument:\n{text}"
 
     response = client.responses.create(
         model=model_name,
