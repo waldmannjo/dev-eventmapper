@@ -15,53 +15,65 @@ Allow the user to select which proposed entries are passed to Step 2 via a per-r
 
 ### Data Model
 
-`_candidates_to_df()` gains a second boolean column `_include` (default `True`) alongside the existing `_select` (Move):
+`_candidates_to_df()` — two changes:
+1. Add `"_include": True` to every row dict in the list comprehension.
+2. Add `"_include"` to the empty-fallback columns list:
+   `pd.DataFrame(columns=["_select", "_include", "name", "description", "context"])`
 
-```
-| _select | _include | name    | description | context |
-|---------|----------|---------|-------------|---------|
-| False   | True     | Table_A | ...         | ...     |
-```
+Column order: `_select, _include, name, description, context`
 
 ### UI Changes (app.py only)
 
-`st.data_editor` for both Status and Reason tables gets a new column config entry:
+Both `st.data_editor` calls get a new entry in `column_config`:
 
 ```python
 "_include": st.column_config.CheckboxColumn("Include", default=True)
 ```
 
-The "Move" column (`_select`) remains unchanged.
+The "Move" column (`_select`) is unchanged.
 
 ### Filtering at Step 2 Handoff
 
-Lines 401–402 are updated to filter by `_include`:
+To guarantee `edited_stat` and `edited_reas` are always defined (the data editors are inside `if not df.empty:` blocks), initialize defaults from session state before `col1, col2 = st.columns(2)`:
+
+```python
+edited_stat = st.session_state.stat_candidates_df   # fallback if table is empty
+edited_reas = st.session_state.reas_candidates_df   # fallback if table is empty
+```
+
+Inside each `if not df.empty:` block, the variable is immediately reassigned to the `st.data_editor(...)` return value, which is the authoritative live source for non-empty tables. The default assignment is only used when the table is empty (in which case ignoring UI edits is correct behaviour since nothing was rendered).
+
+Replace the current `selected_stats`/`selected_reas` lines with:
 
 ```python
 selected_stats = edited_stat[edited_stat["_include"]]["name"].tolist()
 selected_reas  = edited_reas[edited_reas["_include"]]["name"].tolist()
 ```
 
-Existing validation (at least one status source required) continues to work correctly.
+Filtering an empty DataFrame by `_include` returns `[]` naturally. Existing validation (`if not selected_stats: st.error("Please select at least one source for status codes.")`) continues to work — it now also fires if the user unchecks all `_include` checkboxes in the status table, which is correct behaviour.
 
 ### Move Logic
 
-During Move operations, `_include` is preserved alongside `_select` — no changes needed as `drop(columns=["_select"])` only drops the Move column, and `_include` survives the concat.
+The move code does `drop(columns=["_select"])` then `insert(0, "_select", False)`. `_include` is not dropped, so it survives with the user's current checkbox values intact — this is intentional: moving a row preserves its Include state.
 
-Wait — actually `_include` must NOT be dropped during move. The move logic does `drop(columns=["_select"])` then re-inserts `_select`. The `_include` column should survive naturally since it is not dropped.
+Column order after move: `_select, _include, name, description, context` — consistent with `_candidates_to_df`.
+
+No changes to move logic are required.
+
+### Guard Block (around line 324)
+
+The guard block calls `_candidates_to_df()`, which is already being updated. No code changes needed in the guard block.
 
 ## Scope
 
-**Only `app.py`** — no backend changes required.
+**Only `app.py`.** Line numbers below are indicative and will shift slightly during implementation.
 
-### Files to Change
-
-| File | Change |
-|------|--------|
-| `app.py` | `_candidates_to_df()`: add `_include` column |
-| `app.py` | Both `st.data_editor` calls: add `_include` column config |
-| `app.py` | `selected_stats` / `selected_reas` assignment: filter by `_include` |
-| `app.py` | Guard block (line 324–330): add `_include` to fallback DataFrame init |
+| Location | Change |
+|----------|--------|
+| `_candidates_to_df()` | Add `"_include": True` to row dicts; add `"_include"` to empty-fallback columns |
+| Both `st.data_editor` calls | Add `"_include"` to `column_config` |
+| Before `col1, col2 = st.columns(2)` | Add two default assignments for `edited_stat` / `edited_reas` |
+| `selected_stats` / `selected_reas` assignment | Filter by `_include` from `edited_stat` / `edited_reas` |
 
 ## Non-Goals
 
