@@ -19,7 +19,7 @@ def extract_data_step2(client, text: str, status_scope: list, reason_scope: list
     # 1. Format scopes for the prompt
     # If lists are empty, set a placeholder so the prompt is not confused.
     scope_text_status = ", ".join(status_scope) if status_scope else "No specific selection (search generally)"
-    scope_text_reason = ", ".join(reason_scope) if reason_scope else "None (code 'not available')"
+    scope_text_reason = ", ".join(reason_scope) if reason_scope else "none - leave reasons_csv as an empty string"
 
     system_prompt = "You are a data extraction assistant. Reply exclusively with valid JSON."
 
