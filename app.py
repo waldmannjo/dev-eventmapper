@@ -123,7 +123,9 @@ with st.sidebar:
         st.stop()
 
     if st.button("🔄 Reset Process", help="Clears all stored data and resets the workflow to step 0."):
+        new_upload_key = st.session_state.get("upload_key", 0) + 1
         st.session_state.clear()
+        st.session_state.upload_key = new_upload_key
         st.rerun()
 
     if st.session_state.get("costs"):
@@ -226,6 +228,8 @@ if "current_step" not in st.session_state:
     st.session_state.current_step = 0
 
 if "raw_text" not in st.session_state: st.session_state.raw_text = ""
+if "raw_text_source" not in st.session_state: st.session_state.raw_text_source = ""
+if "upload_key" not in st.session_state: st.session_state.upload_key = 0
 if "analysis_res" not in st.session_state: st.session_state.analysis_res = {}
 if "extraction_res" not in st.session_state: st.session_state.extraction_res = {}
 if "df_merged" not in st.session_state: st.session_state.df_merged = pd.DataFrame()
@@ -243,13 +247,18 @@ st.header("Step 0: Document Upload")
 _tab_file, _tab_url = st.tabs(["📄 Upload File", "🔗 Enter URL"])
 
 with _tab_file:
-    uploaded_file = st.file_uploader("Upload file", type=["pdf", "xlsx", "csv", "txt"])
+    uploaded_file = st.file_uploader("Upload file", type=["pdf", "xlsx", "csv", "txt"], key=f"file_uploader_{st.session_state.upload_key}")
     if uploaded_file and not st.session_state.raw_text:
         with st.spinner("Reading file..."):
             text = logic.extract_text_from_file(uploaded_file)
             st.session_state.raw_text = text
+            st.session_state.raw_text_source = "file"
             st.success(f"Text extracted ({len(text)} characters).")
             st.session_state.current_step = 0
+    elif not uploaded_file and st.session_state.current_step == 0 and st.session_state.raw_text_source == "file":
+        st.session_state.raw_text = ""
+        st.session_state.raw_text_source = ""
+        st.rerun()
 
 with _tab_url:
     _url_input = st.text_input("JSON URL", placeholder="https://api.example.com/translations.json")
@@ -261,6 +270,7 @@ with _tab_url:
                 try:
                     text = logic.fetch_text_from_url(_url_input.strip())
                     st.session_state.raw_text = text
+                    st.session_state.raw_text_source = "url"
                     st.success(f"JSON loaded ({len(text)} characters).")
                     st.session_state.current_step = 0
                 except Exception as e:
