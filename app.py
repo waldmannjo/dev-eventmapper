@@ -247,7 +247,7 @@ st.header("Carrier documentation upload")
 _tab_file, _tab_url = st.tabs(["📄 Upload File", "🔗 Enter URL"])
 
 with _tab_file:
-    uploaded_file = st.file_uploader("Upload file", type=["pdf", "xlsx", "csv", "txt"], key=f"file_uploader_{st.session_state.upload_key}")
+    uploaded_file = st.file_uploader("Upload file", type=["pdf", "xlsx", "csv", "txt", "json", "xml"], key=f"file_uploader_{st.session_state.upload_key}")
     if uploaded_file and not st.session_state.raw_text:
         with st.spinner("Reading file..."):
             text = logic.extract_text_from_file(uploaded_file)
