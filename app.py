@@ -122,7 +122,7 @@ with st.sidebar:
         st.warning("Please enter your API Key.")
         st.stop()
 
-    if st.button("🔄 Reset Process", help="Clears all stored data and resets the workflow to step 0."):
+    if st.button("🔄 Reset Process", help="Clears all stored data and resets the workflow to the upload step."):
         new_upload_key = st.session_state.get("upload_key", 0) + 1
         st.session_state.clear()
         st.session_state.upload_key = new_upload_key
@@ -240,9 +240,9 @@ if "df_reasons_edit" not in st.session_state: st.session_state.df_reasons_edit =
 if "costs" not in st.session_state: st.session_state.costs = {}
 
 # =========================================================
-# STEP 0: UPLOAD
+# CARRIER DOCUMENTATION UPLOAD
 # =========================================================
-st.header("Step 0: Document Upload")
+st.header("Carrier documentation upload")
 
 _tab_file, _tab_url = st.tabs(["📄 Upload File", "🔗 Enter URL"])
 
