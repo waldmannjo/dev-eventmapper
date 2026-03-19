@@ -1,6 +1,5 @@
 # tests/test_file_loader.py
 import json
-import io
 from unittest.mock import MagicMock
 from backend.loader import extract_text_from_file
 

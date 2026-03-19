@@ -4,7 +4,7 @@ import requests
 import pandas as pd
 
 def extract_text_from_file(uploaded_file):
-    """Reads text from PDF, XLSX, CSV, TXT. For Excel, reads ALL sheets."""
+    """Reads text from PDF, XLSX, CSV, TXT, JSON, XML. For Excel, reads ALL sheets."""
     filename = uploaded_file.name
     text = ""
     
