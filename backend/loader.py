@@ -28,7 +28,12 @@ def extract_text_from_file(uploaded_file):
         elif filename.endswith('.csv') or filename.endswith('.txt'):
             stringio = io.StringIO(uploaded_file.getvalue().decode("utf-8"))
             text = stringio.read()
-            
+
+        elif filename.endswith('.json'):
+            raw = uploaded_file.getvalue().decode("utf-8")
+            data = json.loads(raw)
+            text = json.dumps(data, indent=2, ensure_ascii=False)
+
     except Exception as e:
         return f"Error reading file: {e}"
 
