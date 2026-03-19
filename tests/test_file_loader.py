@@ -29,7 +29,7 @@ def test_json_file_truncated_to_100k():
     data = {"key": "x" * 200_000}
     raw = json.dumps(data).encode("utf-8")
     result = extract_text_from_file(_make_file("big.json", raw))
-    assert len(result) <= 100_000
+    assert len(result) == 100_000
 
 
 def test_xml_file_pretty_printed():
@@ -50,4 +50,4 @@ def test_xml_file_truncated_to_100k():
     items = "".join(f"<item>{i * 'x'}</item>" for i in range(1, 500))
     xml_bytes = f"<root>{items}</root>".encode("utf-8")
     result = extract_text_from_file(_make_file("big.xml", xml_bytes))
-    assert len(result) <= 100_000
+    assert len(result) == 100_000
