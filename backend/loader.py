@@ -38,7 +38,8 @@ def extract_text_from_file(uploaded_file):
         elif filename.endswith('.xml'):
             raw = uploaded_file.getvalue()
             dom = xml.dom.minidom.parseString(raw)
-            text = dom.toprettyxml(indent="  ")
+            lines = dom.toprettyxml(indent="  ").splitlines()
+            text = "\n".join(l for l in lines if not l.strip().startswith("<?xml"))
 
     except Exception as e:
         return f"Error reading file: {e}"
