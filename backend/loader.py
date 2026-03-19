@@ -1,5 +1,6 @@
 import io
 import json
+import xml.dom.minidom
 import requests
 import pandas as pd
 
@@ -33,6 +34,11 @@ def extract_text_from_file(uploaded_file):
             raw = uploaded_file.getvalue().decode("utf-8")
             data = json.loads(raw)
             text = json.dumps(data, indent=2, ensure_ascii=False)
+
+        elif filename.endswith('.xml'):
+            raw = uploaded_file.getvalue()
+            dom = xml.dom.minidom.parseString(raw)
+            text = dom.toprettyxml(indent="  ")
 
     except Exception as e:
         return f"Error reading file: {e}"

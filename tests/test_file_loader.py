@@ -30,3 +30,24 @@ def test_json_file_truncated_to_100k():
     raw = json.dumps(data).encode("utf-8")
     result = extract_text_from_file(_make_file("big.json", raw))
     assert len(result) <= 100_000
+
+
+def test_xml_file_pretty_printed():
+    xml_bytes = b'<?xml version="1.0"?><codes><code id="DEL">Delivered</code></codes>'
+    result = extract_text_from_file(_make_file("codes.xml", xml_bytes))
+    assert "<code" in result
+    assert "DEL" in result
+    assert "Delivered" in result
+
+
+def test_xml_file_invalid_returns_error():
+    result = extract_text_from_file(_make_file("bad.xml", b"<unclosed>"))
+    assert result.startswith("Error reading file:")
+
+
+def test_xml_file_truncated_to_100k():
+    # Build a large but valid XML document
+    items = "".join(f"<item>{i * 'x'}</item>" for i in range(1, 500))
+    xml_bytes = f"<root>{items}</root>".encode("utf-8")
+    result = extract_text_from_file(_make_file("big.xml", xml_bytes))
+    assert len(result) <= 100_000
