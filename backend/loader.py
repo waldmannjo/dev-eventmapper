@@ -4,6 +4,8 @@ import xml.dom.minidom
 import requests
 import pandas as pd
 
+_MAX_TEXT_CHARS = 100_000
+
 def extract_text_from_file(uploaded_file):
     """Reads text from PDF, XLSX, CSV, TXT, JSON, XML. For Excel, reads ALL sheets."""
     filename = uploaded_file.name
@@ -26,7 +28,7 @@ def extract_text_from_file(uploaded_file):
                 text += f"\n--- WORKSHEET: {sheet_name} ---\n"
                 text += df.to_string() + "\n"
                 
-        elif filename.endswith('.csv') or filename.endswith('.txt'):
+        elif filename.endswith(('.csv', '.txt')):
             stringio = io.StringIO(uploaded_file.getvalue().decode("utf-8"))
             text = stringio.read()
 
@@ -39,13 +41,13 @@ def extract_text_from_file(uploaded_file):
             raw = uploaded_file.getvalue()
             dom = xml.dom.minidom.parseString(raw)
             lines = dom.toprettyxml(indent="  ").splitlines()
-            text = "\n".join(l for l in lines if not l.strip().startswith("<?xml"))
+            text = "\n".join(l for l in lines if not l.strip().startswith("<?xml version"))
 
     except Exception as e:
         return f"Error reading file: {e}"
 
     # Optional: increase limit if there are many sheets
-    return text[:100000]
+    return text[:_MAX_TEXT_CHARS]
 
 
 def fetch_text_from_url(url: str) -> str:
@@ -53,4 +55,4 @@ def fetch_text_from_url(url: str) -> str:
     resp = requests.get(url, verify=False, timeout=30)
     resp.raise_for_status()
     data = resp.json()
-    return json.dumps(data, indent=2, ensure_ascii=False)[:100_000]
+    return json.dumps(data, indent=2, ensure_ascii=False)[:_MAX_TEXT_CHARS]
