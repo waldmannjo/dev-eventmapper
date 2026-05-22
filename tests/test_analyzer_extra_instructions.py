@@ -57,4 +57,4 @@ def test_returns_parsed_json_and_usage():
     assert "status_candidates" in result
     assert usage["input_tokens"] == 10
     assert usage["output_tokens"] == 5
-    assert usage["model"] == "gpt-4o"
+    assert usage["model"] == "gpt-5.4-mini-2026-03-17"

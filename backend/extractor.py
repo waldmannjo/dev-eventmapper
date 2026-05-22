@@ -10,7 +10,7 @@ import io
 import pandas as pd
 from openai import OpenAI
 
-def extract_data_step2(client, text: str, status_scope: list, reason_scope: list, model_name: str = "gpt-4o"):
+def extract_data_step2(client, text: str, status_scope: list, reason_scope: list, model_name: str = "gpt-5.4-mini-2026-03-17"):
     """
     Extracts data based on the scope (user selection).
     Prioritizes existing combinations in the text.

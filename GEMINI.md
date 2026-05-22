@@ -12,12 +12,12 @@
     - **k-NN Classification**: Direct mapping from historical data (11k+ examples) for high-confidence matches.
     - **Semantic Search**: Leveraging `text-embedding-3-large` for nuanced understanding.
     - **Cross-Encoder Re-Ranking**: Using multilingual models to verify and rank candidates.
-    - **LLM Fallback**: Using GPT-4o with retrieval-augmented context (Few-Shot) for edge cases.
+    - **LLM Fallback**: Using GPT-5.x models with retrieval-augmented context (Few-Shot) for edge cases.
 
 ## Tech Stack
 - **Frontend**: Streamlit
 - **Language**: Python 3.14+
-- **AI/ML**: OpenAI API (GPT-4o, text-embedding-3-large), Sentence Transformers (Cross-Encoder), Scikit-learn.
+- **AI/ML**: OpenAI API (GPT-5.x, text-embedding-3-large), Sentence Transformers (Cross-Encoder), Scikit-learn.
 - **Data Handling**: Pandas, OpenPyXL, PyPDF.
 
 ## Architecture

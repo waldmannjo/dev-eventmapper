@@ -83,11 +83,11 @@ from unittest.mock import Mock, patch
 
 def test_make_usage_gpt5_nano():
     from app import _make_usage
-    result = _make_usage(1_000_000, 0, "gpt-5-nano-2025-08-07")
+    result = _make_usage(1_000_000, 0, "gpt-5.4-nano-2026-03-17")
     assert result["input_tokens"] == 1_000_000
     assert result["output_tokens"] == 0
-    assert abs(result["cost_usd"] - 0.05) < 1e-9
-    assert result["model"] == "gpt-5-nano-2025-08-07"
+    assert abs(result["cost_usd"] - 0.20) < 1e-9
+    assert result["model"] == "gpt-5.4-nano-2026-03-17"
 
 
 def test_make_usage_embedding_no_output():
@@ -106,9 +106,9 @@ def test_make_usage_unknown_model_zero_cost():
 
 def test_make_usage_combined_input_output():
     from app import _make_usage
-    # gpt-4.1: input $2/1M, output $8/1M => 2+8 = $10 total
-    result = _make_usage(1_000_000, 1_000_000, "gpt-4.1-2025-04-14")
-    assert abs(result["cost_usd"] - 10.0) < 1e-9
+    # gpt-5.4: input $2.5/1M, output $15/1M => 2.5+15 = $17.5 total
+    result = _make_usage(1_000_000, 1_000_000, "gpt-5.4-2026-03-05")
+    assert abs(result["cost_usd"] - 17.5) < 1e-9
 
 
 def test_embed_texts_returns_tuple(mock_openai_client):
@@ -151,13 +151,13 @@ def test_run_llm_batch_async_returns_tuple():
         mock_async_cls.return_value = mock_async_client
 
         results, raw_usage = asyncio.run(
-            run_llm_batch_async("fake-key", tasks, "gpt-5-nano-2025-08-07")
+            run_llm_batch_async("fake-key", tasks, "gpt-5.4-nano-2026-03-17")
         )
 
     assert len(results) == 1
     assert raw_usage["input_tokens"] == 50
     assert raw_usage["output_tokens"] == 10
-    assert raw_usage["model"] == "gpt-5-nano-2025-08-07"
+    assert raw_usage["model"] == "gpt-5.4-nano-2026-03-17"
 
 
 def test_run_mapping_step4_returns_tuple(mock_openai_client):
@@ -188,7 +188,7 @@ def test_run_mapping_step4_returns_tuple(mock_openai_client):
          )), \
          patch.object(mapper_module, "build_bm25_index", return_value=mock_bm25):
         result = run_mapping_step4(
-            mock_openai_client, df.copy(), model_name="gpt-5-nano-2025-08-07", threshold=0.0
+            mock_openai_client, df.copy(), model_name="gpt-5.4-nano-2026-03-17", threshold=0.0
         )
 
     assert isinstance(result, tuple), "run_mapping_step4 must return (df, step4_usage)"
