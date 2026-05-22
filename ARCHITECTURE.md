@@ -61,7 +61,7 @@ Each step advances `current_step` only after successful completion. Use `st.reru
 
 ### Model Selection (`MODEL_CONFIG` in `app.py`)
 
-The UI allows per-step model selection. Step 4 (mapping) is the most expensive due to batch embeddings. Use cheaper models (e.g., `gpt-5-nano`) for steps 1-2 when processing large documents.
+The UI allows per-step model selection. Step 4 (mapping) is the most expensive due to batch embeddings. Use cheaper models (e.g., `gpt-5.4-nano`) for steps 1-2 when processing large documents.
 
 ### Mapper Settings (`MAPPER_CONFIG` in `app.py`)
 

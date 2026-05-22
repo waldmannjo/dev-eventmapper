@@ -92,7 +92,7 @@ def merge_data_step3(extraction_result):
             
     return pd.DataFrame()
 
-def apply_ai_transformation(client, df: pd.DataFrame, instruction: str, model_name: str = "gpt-4o") -> pd.DataFrame:
+def apply_ai_transformation(client, df: pd.DataFrame, instruction: str, model_name: str = "gpt-5.4-mini-2026-03-17") -> pd.DataFrame:
     """
     Passt den DataFrame basierend auf einer Nutzeranweisung per LLM an.
     """
@@ -127,7 +127,7 @@ def apply_ai_transformation(client, df: pd.DataFrame, instruction: str, model_na
 
     try:
         response = client.responses.create(
-        model=model_name,  # z.B. "gpt-5.1-2025-11-13"
+        model=model_name,  # z.B. "gpt-5.5-2026-04-23"
         input=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},

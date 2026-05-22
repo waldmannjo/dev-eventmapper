@@ -12,7 +12,7 @@ from backend.synonyms import (
     REASON_SYNONYMS_COLUMNS
 )
 
-def analyze_structure_step1(client, text: str, model_name: str = "gpt-4o", extra_instructions: str = ""):
+def analyze_structure_step1(client, text: str, model_name: str = "gpt-5.4-mini-2026-03-17", extra_instructions: str = ""):
     system_prompt = "You are a data analysis expert. Reply exclusively with valid JSON."
 
     # Prepare synonym lists for the prompt

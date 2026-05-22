@@ -36,19 +36,19 @@ st.title("Eventmapper")
 # --- CONFIGURATION ---
 # Configuration of available models with description and cost
 MODEL_CONFIG = {
-    "gpt-5-nano-2025-08-07": {"desc": "Fastest, most cost-efficient version of GPT-5", "cost": "Input: $0.05, Output: $0.4"},
-    "gpt-5-mini-2025-08-07": {"desc": "A faster, cost-efficient version of GPT-5 for well-defined tasks", "cost": "Input: $0.25, Output: $2"},
-    "gpt-5.1-2025-11-13": {"desc": "The best model for coding and agentic tasks with configurable reasoning effort.", "cost": "Input: $1.25, Output: $10"},
-    "gpt-4.1-2025-04-14": {"desc": "Smartest non-reasoning model", "cost": "Input: $2, Output: $8"}
+    "gpt-5.4-nano-2026-03-17": {"desc": "Cheapest GPT-5.4-class model for simple, high-volume tasks", "cost": "Input: $0.2, Output: $1.25"},
+    "gpt-5.4-mini-2026-03-17": {"desc": "Strongest mini model for coding, computer use, and subagents", "cost": "Input: $0.75, Output: $4.5"},
+    "gpt-5.4-2026-03-05": {"desc": "Affordable model for coding and professional work", "cost": "Input: $2.5, Output: $15"},
+    "gpt-5.5-2026-04-23": {"desc": "Flagship model for coding and agentic tasks with configurable reasoning effort.", "cost": "Input: $5, Output: $30"}
 }
 
-# Pricing per 1M tokens (verified 2026-03-09 against developers.openai.com/api/docs/pricing/)
+# Pricing per 1M tokens (verified 2026-05-22 against developers.openai.com/api/docs/pricing/)
 PRICING = {
-    "gpt-5-nano-2025-08-07":  {"input": 0.05,  "output": 0.40},
-    "gpt-5-mini-2025-08-07":  {"input": 0.25,  "output": 2.00},
-    "gpt-5.1-2025-11-13":     {"input": 1.25,  "output": 10.00},
-    "gpt-4.1-2025-04-14":     {"input": 2.00,  "output": 8.00},
-    "text-embedding-3-large": {"input": 0.13,  "output": 0.00},
+    "gpt-5.4-nano-2026-03-17": {"input": 0.20,  "output": 1.25},
+    "gpt-5.4-mini-2026-03-17": {"input": 0.75,  "output": 4.50},
+    "gpt-5.4-2026-03-05":      {"input": 2.50,  "output": 15.00},
+    "gpt-5.5-2026-04-23":      {"input": 5.00,  "output": 30.00},
+    "text-embedding-3-large":  {"input": 0.13,  "output": 0.00},
 }
 
 
