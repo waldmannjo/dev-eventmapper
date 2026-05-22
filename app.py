@@ -28,7 +28,7 @@ from openai import OpenAI, AuthenticationError, RateLimitError, APIConnectionErr
 import backend as logic  # <-- Our new backend module
 from backend.mapper import HISTORY_FILE, CACHE_EMBEDDINGS, CACHE_DF, CACHE_META
 
-VERSION = "0.5.0"
+VERSION = "0.5.1"
 
 st.set_page_config(page_title="Eventmapper", layout="wide")
 st.title("Eventmapper")

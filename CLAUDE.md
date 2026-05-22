@@ -11,7 +11,7 @@
 source venv/bin/activate        # Linux/Mac
 streamlit run app.py           # Run the app
 pip install -r requirements.txt # Install deps
-pytest tests/ -v               # Run tests (22 tests, ~30s)
+pytest tests/ -v               # Run tests (150 tests, ~25s)
 ```
 
 ## Key Files
@@ -34,19 +34,17 @@ Step 4 (mapping) is the core logic. See [ARCHITECTURE.md](ARCHITECTURE.md) for d
 - **SSL verification is disabled** globally for corporate proxy compatibility. Do not remove.
 - **Always use the venv** (`.\venv\Scripts\activate`). System Python lacks `sentence-transformers` etc.
 - After changing `EMB_DIMENSIONS`, **delete disk cache** (`examples/history_embeddings.npy`, `history_df.pkl`, `history_cache_meta.json`) and **clear Streamlit cache** to regenerate historical embeddings.
+- When changing OpenAI model IDs, update **all** of: `MODEL_CONFIG` + `PRICING` in `app.py` (same keys), the `model_name` defaults in `backend/{analyzer,extractor,merger}.py`, and tests asserting IDs/prices (`test_cost_tracking.py`, `test_analyzer_extra_instructions.py`).
 
 ## Git Workflow
 
 - Main branch: `main`. Create feature branches for all changes.
 - Never push directly to main.
-- Current work: see [HANDOVER.md](HANDOVER.md) for session context.
 
 ## Deep Dive References
 
 | Document | Content |
 |----------|---------|
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Full technical architecture, modules, config, data files, common patterns |
-| [HANDOVER.md](HANDOVER.md) | Current session state, bugs, decisions, next steps |
-| [.memory/diagrams/](.memory/diagrams/) | Visual Mermaid diagrams (folder structure, data flow, components, UI) |
 | [docs/phase1-improvements.md](docs/phase1-improvements.md) | Phase 1 feature details, testing, rollback procedures |
-| [docs/plans/](docs/plans/) | Design docs and implementation plans |
+| [docs/plans/](docs/plans/) | Design docs and implementation plans (per-feature `YYYY-MM-DD-*-design.md` + impl notes) |
