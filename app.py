@@ -756,9 +756,22 @@ if st.session_state.current_step >= 4:
     st.divider()
     st.header("✅ Step 4: Final Mapping")
 
-    st.dataframe(st.session_state.df_final, width="stretch")
+    _display_rename = {
+        "Statuscode": "Event code",
+        "Reasoncode": "Reason code",
+        "final_code": "AEB event code",
+        "Description": "Event description",
+    }
+    _preferred_order = ["Statuscode", "Reasoncode", "final_code", "Description"]
+    _df_final = st.session_state.df_final
+    _ordered_cols = [c for c in _preferred_order if c in _df_final.columns] + [
+        c for c in _df_final.columns if c not in _preferred_order
+    ]
+    df_final_display = _df_final[_ordered_cols].rename(columns=_display_rename)
 
-    csv_data = st.session_state.df_final.to_csv(index=False, sep=";").encode('utf-8')
+    st.dataframe(df_final_display, width="stretch")
+
+    csv_data = df_final_display.to_csv(index=False, header=False, sep=";").encode('utf-8')
     st.download_button("💾 Download Mapping", csv_data, "final_mapping.csv", "text/csv")
 
     # --- Save to History ---
