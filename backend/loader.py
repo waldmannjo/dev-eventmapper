@@ -67,7 +67,13 @@ def extract_text_from_files(uploaded_files) -> str:
     if len(uploaded_files) == 1:
         return extract_text_from_file(uploaded_files[0])
 
-    parts = [f"--- FILE: {f.name} ---\n{_extract_one(f)}" for f in uploaded_files]
+    parts, total = [], 0
+    for f in uploaded_files:
+        if total >= _MAX_TEXT_CHARS:
+            break  # budget already met; don't parse the remaining files
+        part = f"--- FILE: {f.name} ---\n{_extract_one(f)}"
+        total += len(part) + (2 if parts else 0)  # "\n\n" joins all but the first part
+        parts.append(part)
     return "\n\n".join(parts)[:_MAX_TEXT_CHARS]
 
 
