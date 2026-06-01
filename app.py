@@ -381,11 +381,11 @@ if st.session_state.current_step >= 1 and st.session_state.analysis_res:
                 st.rerun()
             col_all, col_none = st.columns([1, 1])
             with col_all:
-                if st.button("☑ Alle", key="stat_select_all"):
+                if st.button("☑ All", key="stat_select_all"):
                     st.session_state.stat_candidates_df["_include"] = True
                     st.rerun()
             with col_none:
-                if st.button("☐ Keine", key="stat_select_none"):
+                if st.button("☐ None", key="stat_select_none"):
                     st.session_state.stat_candidates_df["_include"] = False
                     st.rerun()
         else:
@@ -423,11 +423,11 @@ if st.session_state.current_step >= 1 and st.session_state.analysis_res:
                 st.rerun()
             col_all, col_none = st.columns([1, 1])
             with col_all:
-                if st.button("☑ Alle", key="reas_select_all"):
+                if st.button("☑ All", key="reas_select_all"):
                     st.session_state.reas_candidates_df["_include"] = True
                     st.rerun()
             with col_none:
-                if st.button("☐ Keine", key="reas_select_none"):
+                if st.button("☐ None", key="reas_select_none"):
                     st.session_state.reas_candidates_df["_include"] = False
                     st.rerun()
         else:
