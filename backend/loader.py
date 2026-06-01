@@ -6,11 +6,11 @@ import pandas as pd
 
 _MAX_TEXT_CHARS = 100_000
 
-def extract_text_from_file(uploaded_file):
-    """Reads text from PDF, XLSX, CSV, TXT, JSON, XML. For Excel, reads ALL sheets."""
+def _extract_one(uploaded_file) -> str:
+    """Reads raw text from a single file (no length cap applied)."""
     filename = uploaded_file.name
     text = ""
-    
+
     try:
         if filename.endswith('.pdf'):
             from pypdf import PdfReader
@@ -46,8 +46,29 @@ def extract_text_from_file(uploaded_file):
     except Exception as e:
         return f"Error reading file: {e}"
 
-    # Optional: increase limit if there are many sheets
-    return text[:_MAX_TEXT_CHARS]
+    return text
+
+
+def extract_text_from_file(uploaded_file):
+    """Reads text from PDF, XLSX, CSV, TXT, JSON, XML. For Excel, reads ALL sheets."""
+    return _extract_one(uploaded_file)[:_MAX_TEXT_CHARS]
+
+
+def extract_text_from_files(uploaded_files) -> str:
+    """Reads and concatenates text from multiple files.
+
+    Each file's text is prefixed with a '--- FILE: <name> ---' marker so the
+    LLM can tell them apart. A single file is returned without a marker, i.e.
+    identical to extract_text_from_file. The combined text is capped at
+    _MAX_TEXT_CHARS total (not per file).
+    """
+    if not uploaded_files:
+        return ""
+    if len(uploaded_files) == 1:
+        return extract_text_from_file(uploaded_files[0])
+
+    parts = [f"--- FILE: {f.name} ---\n{_extract_one(f)}" for f in uploaded_files]
+    return "\n\n".join(parts)[:_MAX_TEXT_CHARS]
 
 
 def fetch_text_from_url(url: str) -> str:

@@ -247,15 +247,15 @@ st.header("Carrier documentation upload")
 _tab_file, _tab_url = st.tabs(["📄 Upload File", "🔗 Enter URL"])
 
 with _tab_file:
-    uploaded_file = st.file_uploader("Upload file", type=["pdf", "xlsx", "csv", "txt", "json", "xml"], key=f"file_uploader_{st.session_state.upload_key}")
-    if uploaded_file and not st.session_state.raw_text:
-        with st.spinner("Reading file..."):
-            text = logic.extract_text_from_file(uploaded_file)
+    uploaded_files = st.file_uploader("Upload file", type=["pdf", "xlsx", "csv", "txt", "json", "xml"], accept_multiple_files=True, key=f"file_uploader_{st.session_state.upload_key}")
+    if uploaded_files and not st.session_state.raw_text:
+        with st.spinner("Reading files..."):
+            text = logic.extract_text_from_files(uploaded_files)
             st.session_state.raw_text = text
             st.session_state.raw_text_source = "file"
-            st.success(f"Text extracted ({len(text)} characters).")
+            st.success(f"Text extracted from {len(uploaded_files)} file(s) ({len(text)} characters).")
             st.session_state.current_step = 0
-    elif not uploaded_file and st.session_state.current_step == 0 and st.session_state.raw_text_source == "file":
+    elif not uploaded_files and st.session_state.current_step == 0 and st.session_state.raw_text_source == "file":
         st.session_state.raw_text = ""
         st.session_state.raw_text_source = ""
         st.rerun()
