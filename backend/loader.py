@@ -1,8 +1,8 @@
 import io
 import json
-import xml.dom.minidom
 import requests
 import pandas as pd
+from defusedxml.minidom import parseString as _xml_parse  # hardened: forbids entity expansion / external entities
 
 _MAX_TEXT_CHARS = 100_000
 
@@ -39,7 +39,7 @@ def _extract_one(uploaded_file) -> str:
 
         elif filename.endswith('.xml'):
             raw = uploaded_file.getvalue()
-            dom = xml.dom.minidom.parseString(raw)
+            dom = _xml_parse(raw)
             lines = dom.toprettyxml(indent="  ").splitlines()
             text = "\n".join(l for l in lines if not l.strip().startswith("<?xml version"))
 

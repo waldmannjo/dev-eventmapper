@@ -45,6 +45,18 @@ def test_xml_file_invalid_returns_error():
     assert result.startswith("Error reading file:")
 
 
+def test_xml_entity_expansion_blocked():
+    # Untrusted XML with a defined entity must not be expanded (billion-laughs / DoS guard).
+    payload = (
+        b'<?xml version="1.0"?>'
+        b'<!DOCTYPE root [<!ENTITY x "EXPANDED">]>'
+        b'<root>&x;</root>'
+    )
+    result = extract_text_from_file(_make_file("entity.xml", payload))
+    assert "EXPANDED" not in result            # entity was not expanded
+    assert result.startswith("Error reading file:")  # rejected, not silently processed
+
+
 def test_xml_file_truncated_to_100k():
     # Build a large but valid XML document
     items = "".join(f"<item>{i * 'x'}</item>" for i in range(1, 500))

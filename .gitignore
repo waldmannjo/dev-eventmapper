@@ -9,8 +9,8 @@ ENV/
 env/
 .env
 
-# Streamlit
-.streamlit/
+# Streamlit — ignore secrets only; config.toml is committed so it deploys
+.streamlit/secrets.toml
 
 # Memory files (AI assistant context)
 .memory/
