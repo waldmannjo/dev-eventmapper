@@ -230,6 +230,7 @@ if "current_step" not in st.session_state:
 if "raw_text" not in st.session_state: st.session_state.raw_text = ""
 if "raw_text_source" not in st.session_state: st.session_state.raw_text_source = ""
 if "upload_key" not in st.session_state: st.session_state.upload_key = 0
+if "upload_sig" not in st.session_state: st.session_state.upload_sig = ()
 if "analysis_res" not in st.session_state: st.session_state.analysis_res = {}
 if "extraction_res" not in st.session_state: st.session_state.extraction_res = {}
 if "df_merged" not in st.session_state: st.session_state.df_merged = pd.DataFrame()
@@ -247,17 +248,22 @@ st.header("Carrier documentation upload")
 _tab_file, _tab_url = st.tabs(["📄 Upload File", "🔗 Enter URL"])
 
 with _tab_file:
-    uploaded_file = st.file_uploader("Upload file", type=["pdf", "xlsx", "csv", "txt", "json", "xml"], key=f"file_uploader_{st.session_state.upload_key}")
-    if uploaded_file and not st.session_state.raw_text:
-        with st.spinner("Reading file..."):
-            text = logic.extract_text_from_file(uploaded_file)
+    uploaded_files = st.file_uploader("Upload file", type=["pdf", "xlsx", "csv", "txt", "json", "xml"], accept_multiple_files=True, key=f"file_uploader_{st.session_state.upload_key}")
+    # Re-extract whenever the selection changes (add/remove/replace), not just when raw_text is empty,
+    # so a second file is never silently ignored. Gated to Step 0 so changes can't wipe later-step progress.
+    upload_sig = tuple((f.name, f.size) for f in uploaded_files)
+    if uploaded_files and st.session_state.current_step == 0 and upload_sig != st.session_state.upload_sig:
+        with st.spinner("Reading files..."):
+            text = logic.extract_text_from_files(uploaded_files)
             st.session_state.raw_text = text
             st.session_state.raw_text_source = "file"
-            st.success(f"Text extracted ({len(text)} characters).")
+            st.session_state.upload_sig = upload_sig
+            st.success(f"Text extracted from {len(uploaded_files)} file(s) ({len(text)} characters).")
             st.session_state.current_step = 0
-    elif not uploaded_file and st.session_state.current_step == 0 and st.session_state.raw_text_source == "file":
+    elif not uploaded_files and st.session_state.current_step == 0 and st.session_state.raw_text_source == "file":
         st.session_state.raw_text = ""
         st.session_state.raw_text_source = ""
+        st.session_state.upload_sig = ()
         st.rerun()
 
 with _tab_url:

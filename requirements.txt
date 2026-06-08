@@ -3,6 +3,7 @@ python-dotenv
 pandas
 openai
 pypdf
+defusedxml
 scikit-learn
 numpy
 openpyxl

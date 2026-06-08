@@ -1,0 +1,6 @@
+# Streamlit server configuration (committed so it applies on Streamlit Cloud).
+[server]
+# Cap per-file upload size. Carrier documents are small (largest bundled
+# example is ~0.3 MB); 25 MB leaves generous headroom while cutting the
+# 200 MB default ~8x to reduce accidental memory exhaustion on the host.
+maxUploadSize = 25
