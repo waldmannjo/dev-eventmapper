@@ -70,3 +70,8 @@ def test_app_version_matches_newest_changelog_entry():
 def test_app_changelog_is_strictly_descending():
     keys = [tuple(map(int, v.split("."))) for v in _app_assignments()["CHANGELOG"]]
     assert keys == sorted(keys, reverse=True) and len(set(keys)) == len(keys)
+
+
+def test_app_changelog_has_no_uncurated_placeholder():
+    items = [i for entries in _app_assignments()["CHANGELOG"].values() for i in entries]
+    assert not [i for i in items if i.startswith("TODO")]
