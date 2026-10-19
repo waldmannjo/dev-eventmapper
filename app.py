@@ -165,6 +165,10 @@ MAPPER_CONFIG = {
     "ce_max_pairs": 10000,
 }
 
+# Save-to-History is off until history ingestion has a review step: LLM self-reported
+# confidence does not separate good from bad mappings well enough to gate history writes.
+SAVE_TO_HISTORY_ENABLED = False
+
 def format_model_option(model_key):
     info = MODEL_CONFIG.get(model_key, {})
     desc = info.get("desc", "")
@@ -815,7 +819,7 @@ if st.session_state.current_step >= 4:
     st.download_button("💾 Download Mapping", csv_data, _final_mapping_filename(st.session_state.get("carrier_identcode")), "text/csv")
 
     # --- Save to History ---
-    if not st.session_state.df_final.empty and "source" in st.session_state.df_final.columns:
+    if SAVE_TO_HISTORY_ENABLED and not st.session_state.df_final.empty and "source" in st.session_state.df_final.columns:
         SAVE_CONF_THRESHOLD = 0.70
         llm_mask = (
             (st.session_state.df_final["source"] == "llm-batch") &
