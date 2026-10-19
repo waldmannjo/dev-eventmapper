@@ -11,7 +11,7 @@
 source venv/bin/activate        # Linux/Mac
 streamlit run app.py           # Run the app
 pip install -r requirements.txt # Install deps
-pytest tests/ -v               # Run tests (150 tests, ~25s)
+pytest tests/ -v               # Run tests (~25s)
 ```
 
 ## Key Files
@@ -35,6 +35,13 @@ Step 4 (mapping) is the core logic. See [ARCHITECTURE.md](ARCHITECTURE.md) for d
 - **Always use the venv** (`.\venv\Scripts\activate`). System Python lacks `sentence-transformers` etc.
 - After changing `EMB_DIMENSIONS`, **delete disk cache** (`examples/history_embeddings.npy`, `history_df.pkl`, `history_cache_meta.json`) and **clear Streamlit cache** to regenerate historical embeddings.
 - When changing OpenAI model IDs, update **all** of: `MODEL_CONFIG` + `PRICING` in `app.py` (same keys), the `model_name` defaults in `backend/{analyzer,extractor,merger}.py`, and tests asserting IDs/prices (`test_cost_tracking.py`, `test_analyzer_extra_instructions.py`).
+- **Releases:** bump `VERSION` and add a matching entry to the `CHANGELOG` dict in `app.py` (drives the "What's new?" popover). SemVer: new features or output-format changes → minor.
+- **All user-facing text is English**, including `progress_callback` messages in `backend/mapper.py`.
+
+## Testing
+
+- Pure helpers live in `app.py` and are tested by importing from `app` (see `tests/test_app_helpers.py`).
+- UI smoke test: `streamlit.testing.v1.AppTest.from_file("app.py")`; enter a dummy key into `at.sidebar.text_input[0]` first, or the app calls `st.stop()` before rendering.
 
 ## Git Workflow
 
