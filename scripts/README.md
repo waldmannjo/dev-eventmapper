@@ -3,13 +3,16 @@
 ## release.py
 
 Computes the next version from Conventional Commits since the last `vX.Y.Z` tag
-and writes `VERSION` plus a draft `CHANGELOG` entry into `app.py`. Rules and
+and writes `VERSION` plus a draft `CHANGELOG` entry into `app.py`. After the
+release tag is pushed, `--publish` creates the GitHub release with the top
+`CHANGELOG` entry as notes. Rules and
 release steps: see the module docstring and `CLAUDE.md` → Releases.
 
 ```bash
 python scripts/release.py              # dry run
 python scripts/release.py --apply      # write app.py
 python scripts/release.py --set 1.0.0  # explicit version
+python scripts/release.py --publish    # GitHub release for the pushed tag
 ```
 
 

@@ -11,8 +11,10 @@ Usage:
     python scripts/release.py              # dry run: show commits, bump and changelog draft
     python scripts/release.py --apply      # write VERSION + draft CHANGELOG entry into app.py
     python scripts/release.py --set 1.0.0  # explicit version instead of the computed one
+    python scripts/release.py --publish    # after tagging: GitHub release from the top CHANGELOG entry
 """
 import argparse
+import ast
 import json
 import re
 import subprocess
@@ -82,6 +84,46 @@ def insert_release(source, version, items):
     return source.replace(marker, marker + entry, 1)
 
 
+def read_app_release(source):
+    """Return (VERSION, CHANGELOG) as literal values from app.py source, without importing it."""
+    found = {}
+    for node in ast.parse(source).body:
+        if isinstance(node, ast.Assign):
+            for t in node.targets:
+                if isinstance(t, ast.Name) and t.id in ("VERSION", "CHANGELOG"):
+                    found[t.id] = ast.literal_eval(node.value)
+    return found["VERSION"], found["CHANGELOG"]
+
+
+def release_notes(changelog, version):
+    """Markdown release notes from the CHANGELOG entry for `version`."""
+    items = changelog.get(version)
+    if not items:
+        raise ValueError(f"no CHANGELOG entry for {version}")
+    if any(item.startswith("TODO") for item in items):
+        raise ValueError(f"CHANGELOG entry for {version} still has a TODO placeholder")
+    return "".join(f"- {item}\n" for item in items)
+
+
+def gh_release_cmd(version, notes):
+    """`gh release create` for an already pushed tag vX.Y.Z."""
+    return ["gh", "release", "create", f"v{version}", "--verify-tag", "--latest",
+            "--title", f"Eventmapper {version}", "--notes", notes]
+
+
+def publish(source):
+    version, changelog = read_app_release(source)
+    try:
+        notes = release_notes(changelog, version)
+    except ValueError as e:
+        sys.exit(str(e))
+    print(f"Publishing GitHub release v{version}:\n\n{notes}")
+    result = subprocess.run(gh_release_cmd(version, notes))
+    if result.returncode != 0:
+        sys.exit(f"gh release create failed — is v{version} tagged and pushed?")
+    return 0
+
+
 def _git(*args):
     return subprocess.run(["git", *args], capture_output=True, text=True, check=True).stdout
 
@@ -112,9 +154,15 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--apply", action="store_true", help="write VERSION and CHANGELOG draft into app.py")
     ap.add_argument("--set", metavar="X.Y.Z", help="use this version instead of the computed one")
+    ap.add_argument("--publish", action="store_true",
+                    help="create the GitHub release for the pushed tag of the current VERSION")
     args = ap.parse_args(argv)
+    if args.publish and (args.apply or args.set):
+        ap.error("--publish cannot be combined with --apply or --set")
 
     source = APP.read_text(encoding="utf-8")
+    if args.publish:
+        return publish(source)
     current = _VERSION_LINE.search(source).group(1)
     tag = last_tag()
     if tag and tag != f"v{current}":
@@ -150,6 +198,7 @@ def main(argv=None):
     print("  1. Curate the CHANGELOG lines (user-facing, English, merge related commits)")
     print(f"  2. git commit -am 'chore: release {nxt}'  -> PR -> merge into main")
     print(f"  3. git switch main && git pull && git tag v{nxt} && git push origin v{nxt}")
+    print("  4. python scripts/release.py --publish")
     return 0
 
 
