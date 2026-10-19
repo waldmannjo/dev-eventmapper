@@ -282,6 +282,51 @@ def find_contrastive_example(query_vec, df_hist, hist_vecs, top_candidate_code, 
     return None
 
 
+# needs_review thresholds (plan change 3). Guesses taken from the existing prompt
+# annotation, not measured.
+KNN_REVIEW_CONSENSUS = 0.80
+CE_REVIEW_GAP = 0.05
+
+
+def _needs_review(source, confidence, candidates):
+    """Per-source review rule; raw confidence is not comparable across sources."""
+    if source == "history-knn":
+        return confidence < KNN_REVIEW_CONSENSUS
+    if source == "emb+ce":
+        return len(candidates) > 1 and candidates[0]["score"] - candidates[1]["score"] < CE_REVIEW_GAP
+    # "llm-batch": LLM self-reported confidence does not separate good from bad
+    # mappings, so every LLM decision is reviewed. "emb" (cross-encoder skipped)
+    # and "llm-failed" likewise.
+    return True
+
+
+def _format_candidates(candidates):
+    return "\n".join(f"{c['code']} {c['score']:.2f}" for c in candidates)
+
+
+def _format_knn_matches(matches):
+    return "\n".join(f"{m['mapped_code']} {m['score']:.2f} {m['input']}" for m in matches)
+
+
+def _parse_llm_reasoning(value):
+    """Return the LLM's reasoning as text (JSON for non-text values), or None if absent."""
+    if value is None or isinstance(value, str):
+        return value
+    return json.dumps(value, ensure_ascii=False)
+
+
+def _apply_llm_result(df, idx, result):
+    """Write one LLM result into its row; an invalid response keeps the pre-LLM code."""
+    new_code = result["code"] if result else None
+    if new_code and any(c[0] == new_code for c in CODES):
+        df.at[idx, "final_code"] = new_code
+        df.at[idx, "confidence"] = result["confidence"]
+        df.at[idx, "source"] = "llm-batch"
+        df.at[idx, "reasoning"] = result["reasoning"] or ""
+    else:
+        df.at[idx, "source"] = "llm-failed"
+
+
 def _parse_llm_confidence(value):
     """Return the LLM's self-reported confidence as a float in [0, 1], or None if invalid."""
     if isinstance(value, bool) or not isinstance(value, (int, float)):
@@ -332,7 +377,7 @@ async def classify_single_row(async_client, row_text, candidates, hist_str, mode
             result = {
                 "code": res.get("code"),
                 "confidence": _parse_llm_confidence(res.get("confidence")),
-                "reasoning": res.get("reasoning"),
+                "reasoning": _parse_llm_reasoning(res.get("reasoning")),
             }
             return result, raw_usage
         except Exception as e:
@@ -463,6 +508,7 @@ def run_mapping_step4(client, df, model_name, threshold: float = 0.60, progress_
     pred_codes = []
     conf_scores = []
     sources = []
+    knn_matches_list = [""] * len(q_vecs)
     top_candidates_list = []
 
     # Phase 1: k-NN check + collect CE pairs for non-kNN rows
@@ -499,6 +545,7 @@ def run_mapping_step4(client, df, model_name, threshold: float = 0.60, progress_
                     conf_scores.append(float(consensus))
                     sources.append("history-knn")
                     top_candidates_list.append([])
+                    knn_matches_list[i] = _format_knn_matches(hist_matches)
                     knn_match_found = True
 
         if knn_match_found:
@@ -642,6 +689,9 @@ def run_mapping_step4(client, df, model_name, threshold: float = 0.60, progress_
     # float64: CE scores are float32, which would store an LLM's 0.70 as 0.6999999
     df["confidence"] = np.asarray(conf_scores, dtype=np.float64)
     df["source"] = sources
+    df["candidates"] = [_format_candidates(c) for c in top_candidates_list]
+    df["knn_matches"] = knn_matches_list
+    df["reasoning"] = ""
     
     # 4. LLM Fallback (Async Batch Processing)
     unsure_mask = (df["confidence"] < threshold) & (df["source"] != "history-knn")
@@ -693,28 +743,34 @@ def run_mapping_step4(client, df, model_name, threshold: float = 0.60, progress_
             })
             
         # Run Async Batch
+        results = None
         try:
             # Extract API Key safely
             api_key = client.api_key
             results, llm_usage = asyncio.run(run_llm_batch_async(api_key, tasks_data, model_name, progress_callback))
-            
-            # Process Results
-            # A failed or invalid response keeps the pre-LLM code but is marked "llm-failed"
-            for i, result in enumerate(results):
-                idx = tasks_data[i]['index']
-                new_code = result["code"] if result else None
-                if new_code and any(c[0] == new_code for c in CODES):
-                    df.at[idx, "final_code"] = new_code
-                    df.at[idx, "confidence"] = result["confidence"]
-                    df.at[idx, "source"] = "llm-batch"
-                else:
-                    df.at[idx, "source"] = "llm-failed"
-
         except Exception as e:
             print(f"Async Batch Error: {e}")
             df.loc[unsure_indices, "source"] = "llm-failed"
-            
+
+        # Process Results: one row per guard, so a bad result fails only its own row
+        llm_cols = ["final_code", "confidence", "source", "reasoning"]
+        for i, result in enumerate(results or []):
+            idx = tasks_data[i]['index']
+            before = {col: df.at[idx, col] for col in llm_cols}
+            try:
+                _apply_llm_result(df, idx, result)
+            except Exception as e:
+                print(f"LLM Result Error (row {idx}): {e}")
+                for col, value in before.items():
+                    df.at[idx, col] = value
+                df.at[idx, "source"] = "llm-failed"
+
     
+    df["needs_review"] = [
+        _needs_review(src, conf, cands)
+        for src, conf, cands in zip(df["source"], df["confidence"], top_candidates_list)
+    ]
+
     if progress_callback: progress_callback(1.0, "Done!")
     step4_usage = {
         "step4_embed": {

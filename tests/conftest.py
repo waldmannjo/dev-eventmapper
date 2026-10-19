@@ -1,3 +1,5 @@
+import importlib
+import sys
 import os
 import pytest
 import pandas as pd
@@ -63,3 +65,19 @@ def codes_sample():
         ("CAS", "Consignee Absence", "Customer not home. Keywords: absent, not available."),
         ("CUS", "Customs", "In customs clearance. Keywords: customs, zoll, clearance.")
     ]
+
+
+@pytest.fixture
+def real_streamlit():
+    """test_cost_tracking.py replaces `streamlit` in sys.modules with a stub for the
+    rest of the session; swap the real package back in for the duration of this test."""
+    saved = {k: v for k, v in sys.modules.items() if k == "streamlit" or k.startswith("streamlit.")}
+    stubbed = "streamlit" in sys.modules and getattr(sys.modules["streamlit"], "__file__", None) is None
+    if stubbed:
+        for k in saved:
+            del sys.modules[k]
+    yield importlib.import_module("streamlit.testing.v1").AppTest
+    if stubbed:
+        for k in [k for k in sys.modules if k == "streamlit" or k.startswith("streamlit.")]:
+            del sys.modules[k]
+        sys.modules.update(saved)
