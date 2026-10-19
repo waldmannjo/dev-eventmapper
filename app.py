@@ -29,10 +29,14 @@ from openai import OpenAI, AuthenticationError, RateLimitError, APIConnectionErr
 import backend as logic  # <-- Our new backend module
 from backend.mapper import HISTORY_FILE, CACHE_EMBEDDINGS, CACHE_DF, CACHE_META
 
-VERSION = "0.6.0"
+VERSION = "1.0.0"
 
 # Newest first. The top key must equal VERSION (tests/test_release.py).
 CHANGELOG = {
+    "1.0.0": [
+        "First stable release — no functional changes since 0.6.0",
+        "Version numbers now follow a fixed rule: major = breaking change to the mapping output (e.g. CSV format), minor = new feature, patch = fix",
+    ],
     "0.6.0": [
         "Carrier identcode at upload — final CSV is named final_mapping_<IDENTCODE>.csv",
         "Multiple file upload in the documentation step",
