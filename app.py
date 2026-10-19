@@ -1,4 +1,5 @@
 import os
+import re
 from dotenv import load_dotenv
 load_dotenv()
 # GLOBAL FIX: Disable SSL Verify for Corporate Proxy / Self-Signed Certs
@@ -69,6 +70,12 @@ def _format_tokens(n: int) -> str:
     if n > 999:
         return f"{n / 1000:.1f}k"
     return str(n)
+
+
+def _final_mapping_filename(identcode) -> str:
+    """Build the download name for the final mapping, e.g. final_mapping_LAPOSTE_FR.csv."""
+    safe = re.sub(r"[^A-Za-z0-9_-]+", "_", (identcode or "").strip()).strip("_").upper()
+    return f"final_mapping_{safe}.csv" if safe else "final_mapping.csv"
 
 
 def _candidates_to_df(candidates):
@@ -244,6 +251,13 @@ if "costs" not in st.session_state: st.session_state.costs = {}
 # CARRIER DOCUMENTATION UPLOAD
 # =========================================================
 st.header("Carrier documentation upload")
+
+st.text_input(
+    "Carrier identcode (optional)",
+    placeholder="e.g. LAPOSTE_FR",
+    help="Appended to the final CSV name: final_mapping_<Identcode>.csv",
+    key="carrier_identcode",
+)
 
 _tab_file, _tab_url = st.tabs(["📄 Upload File", "🔗 Enter URL"])
 
@@ -778,7 +792,7 @@ if st.session_state.current_step >= 4:
     st.dataframe(df_final_display, width="stretch")
 
     csv_data = df_final_display.to_csv(index=False, header=False, sep=";").encode('utf-8')
-    st.download_button("💾 Download Mapping", csv_data, "final_mapping.csv", "text/csv")
+    st.download_button("💾 Download Mapping", csv_data, _final_mapping_filename(st.session_state.get("carrier_identcode")), "text/csv")
 
     # --- Save to History ---
     if not st.session_state.df_final.empty and "source" in st.session_state.df_final.columns:
