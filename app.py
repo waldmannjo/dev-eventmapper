@@ -29,7 +29,7 @@ from openai import OpenAI, AuthenticationError, RateLimitError, APIConnectionErr
 import backend as logic  # <-- Our new backend module
 from backend.mapper import HISTORY_FILE, CACHE_EMBEDDINGS, CACHE_DF, CACHE_META
 
-VERSION = "0.5.1"
+VERSION = "0.6.0"
 
 st.set_page_config(page_title="Eventmapper", layout="wide")
 st.title("Eventmapper")
@@ -187,6 +187,21 @@ with st.sidebar:
     st.caption(f"Eventmapper v{VERSION}")
 
     CHANGELOG = {
+        "0.6.0": [
+            "Carrier identcode at upload — final CSV is named final_mapping_<IDENTCODE>.csv",
+            "Multiple file upload in the documentation step",
+            "Step 4 columns renamed and reordered; final CSV exported without header row",
+            "English UI texts in Step 2 buttons and Step 4 progress messages",
+            "Hardened XML parsing and upload size limit",
+        ],
+        "0.5.1": [
+            "Updated OpenAI models to the GPT-5.4/5.5 lineup",
+            "JSON and XML file upload",
+            "Load JSON from a URL in the upload step",
+            "Additional instructions for the structure analysis (Step 1)",
+            "Include checkboxes, select all/none and move buttons for Step 1 candidates",
+            "AI-assisted data transformation in Step 2",
+        ],
         "0.5.0": [
             "Cost transparency — sidebar shows token usage and estimated USD cost per step",
         ],
