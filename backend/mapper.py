@@ -282,6 +282,14 @@ def find_contrastive_example(query_vec, df_hist, hist_vecs, top_candidate_code, 
     return None
 
 
+def _parse_llm_confidence(value):
+    """Return the LLM's self-reported confidence as a float in [0, 1], or None if invalid."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    if not 0.0 <= value <= 1.0:
+        return None
+    return float(value)
+
 async def classify_single_row(async_client, row_text, candidates, hist_str, model_name, semaphore):
     async with semaphore:
         cand_str = "\n".join([
@@ -304,7 +312,8 @@ async def classify_single_row(async_client, row_text, candidates, hist_str, mode
         {cand_str}
         {hist_str}
 
-        Respond in JSON format: {{ "code": "CODE", "reasoning": "Brief justification" }}
+        Respond in JSON format: {{ "code": "CODE", "confidence": 0.0-1.0, "reasoning": "Brief justification" }}
+        "confidence" is your own certainty that "code" is correct.
         """
         
         try:
@@ -320,7 +329,12 @@ async def classify_single_row(async_client, row_text, candidates, hist_str, mode
                 "output_tokens": resp.usage.output_tokens,
                 "model": model_name,
             }
-            return res.get("code"), raw_usage
+            result = {
+                "code": res.get("code"),
+                "confidence": _parse_llm_confidence(res.get("confidence")),
+                "reasoning": res.get("reasoning"),
+            }
+            return result, raw_usage
         except Exception as e:
             print(f"LLM Error: {e}")
             return None, {"input_tokens": 0, "output_tokens": 0, "model": model_name}
@@ -339,7 +353,7 @@ async def run_llm_batch_async(api_key, tasks_data, model_name, progress_callback
     
     async def wrapped_classify(item):
         nonlocal completed
-        code, raw_usage = await classify_single_row(
+        result, raw_usage = await classify_single_row(
             async_client,
             item['text'],
             item['candidates'],
@@ -358,7 +372,7 @@ async def run_llm_batch_async(api_key, tasks_data, model_name, progress_callback
                 f"LLM Batch: {completed}/{total} rows "
                 f"({rate:.1f} rows/s, ETA {eta:.0f}s)..."
             )
-        return code, raw_usage
+        return result, raw_usage
 
     tasks = []
     for item in tasks_data:
@@ -366,7 +380,7 @@ async def run_llm_batch_async(api_key, tasks_data, model_name, progress_callback
 
     pair_results = await asyncio.gather(*tasks)
 
-    results = [code for code, _ in pair_results]
+    results = [result for result, _ in pair_results]
     total_input = sum(u["input_tokens"] for _, u in pair_results)
     total_output = sum(u["output_tokens"] for _, u in pair_results)
     aggregated_usage = {
@@ -684,16 +698,20 @@ def run_mapping_step4(client, df, model_name, threshold: float = 0.60, progress_
             results, llm_usage = asyncio.run(run_llm_batch_async(api_key, tasks_data, model_name, progress_callback))
             
             # Process Results
-            for i, new_code in enumerate(results):
+            # A failed or invalid response keeps the pre-LLM code but is marked "llm-failed"
+            for i, result in enumerate(results):
                 idx = tasks_data[i]['index']
+                new_code = result["code"] if result else None
                 if new_code and any(c[0] == new_code for c in CODES):
                     df.at[idx, "final_code"] = new_code
+                    df.at[idx, "confidence"] = result["confidence"]
                     df.at[idx, "source"] = "llm-batch"
-                    
+                else:
+                    df.at[idx, "source"] = "llm-failed"
+
         except Exception as e:
             print(f"Async Batch Error: {e}")
-            # Fallback to nothing or log error
-            pass
+            df.loc[unsure_indices, "source"] = "llm-failed"
             
     
     if progress_callback: progress_callback(1.0, "Done!")
