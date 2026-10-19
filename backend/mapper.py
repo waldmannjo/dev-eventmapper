@@ -639,7 +639,8 @@ def run_mapping_step4(client, df, model_name, threshold: float = 0.60, progress_
             top_candidates_list[i] = candidates
 
     df["final_code"] = pred_codes
-    df["confidence"] = conf_scores
+    # float64: CE scores are float32, which would store an LLM's 0.70 as 0.6999999
+    df["confidence"] = np.asarray(conf_scores, dtype=np.float64)
     df["source"] = sources
     
     # 4. LLM Fallback (Async Batch Processing)

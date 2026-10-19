@@ -32,7 +32,8 @@ def _fake_embed(client, texts, batch_size=500, dimensions=None):
 
 
 def _fake_ce_predict(pairs):
-    return np.array([_seeded(q + "|" + d).random() for q, d in pairs])
+    # float32 like the real CrossEncoder.predict
+    return np.array([_seeded(q + "|" + d).random() for q, d in pairs], dtype=np.float32)
 
 
 def _input_df():
@@ -92,6 +93,16 @@ def test_llm_row_gets_llm_confidence():
     assert (df["source"] == "llm-batch").all()
     assert (df["final_code"] == LLM_CODE).all()
     assert (df["confidence"] == 0.85).all()
+
+
+def test_llm_confidence_is_stored_exactly():
+    # 0.70 must stay >= 0.70 (save gate, review rule), not become float32 0.6999999
+    create = AsyncMock(return_value=_llm_response(
+        {"code": LLM_CODE, "confidence": 0.70, "reasoning": "r"}
+    ))
+    df = _run(create)
+
+    assert df["confidence"].tolist() == [0.70, 0.70]
 
 
 @pytest.mark.parametrize("payload", [
