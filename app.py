@@ -31,6 +31,53 @@ from backend.mapper import HISTORY_FILE, CACHE_EMBEDDINGS, CACHE_DF, CACHE_META
 
 VERSION = "0.6.0"
 
+# Newest first. The top key must equal VERSION (tests/test_release.py).
+CHANGELOG = {
+    "0.6.0": [
+        "Carrier identcode at upload — final CSV is named final_mapping_<IDENTCODE>.csv",
+        "Multiple file upload in the documentation step",
+        "Step 4 columns renamed and reordered; final CSV exported without header row",
+        "English UI texts in Step 2 buttons and Step 4 progress messages",
+        "Hardened XML parsing and upload size limit",
+    ],
+    "0.5.1": [
+        "Updated OpenAI models to the GPT-5.4/5.5 lineup",
+        "JSON and XML file upload",
+        "Load JSON from a URL in the upload step",
+        "Additional instructions for the structure analysis (Step 1)",
+        "Include checkboxes, select all/none and move buttons for Step 1 candidates",
+        "AI-assisted data transformation in Step 2",
+    ],
+    "0.5.0": [
+        "Cost transparency — sidebar shows token usage and estimated USD cost per step",
+    ],
+    "0.4.0": [
+        "Save to History button — append confirmed LLM mappings to history for future k-NN use",
+        "k-NN threshold slider — tune history match strictness per document (0.80–0.99)",
+        "Full 31-code fallback for unknown carriers when cross-encoder has no signal",
+        "Expanded AEB code keywords (IOD, CAS, ERR, HIN, WRN) with international carrier terms",
+    ],
+    "0.3.0": [
+        "Responses API migration (OpenAI)",
+        "Batched cross-encoder predictions",
+        "Vectorized cosine similarity",
+        "Persistent embedding disk cache",
+        "MAPPER_CONFIG wired into pipeline",
+        "Auto-detect CSV separator",
+    ],
+    "0.2.0": [
+        "BM25 lexical scoring",
+        "Keyword boost for AEB codes",
+        "Multilingual cross-encoder",
+        "Reduced embedding dimensions (1024)",
+    ],
+    "0.1.0": [
+        "Initial release",
+        "Hybrid mapping pipeline (k-NN + Bi-Encoder + Cross-Encoder + LLM)",
+        "Document analysis & extraction",
+    ],
+}
+
 st.set_page_config(page_title="Eventmapper", layout="wide")
 st.title("Eventmapper")
 
@@ -185,52 +232,6 @@ with st.sidebar:
 
     st.markdown("---")
     st.caption(f"Eventmapper v{VERSION}")
-
-    CHANGELOG = {
-        "0.6.0": [
-            "Carrier identcode at upload — final CSV is named final_mapping_<IDENTCODE>.csv",
-            "Multiple file upload in the documentation step",
-            "Step 4 columns renamed and reordered; final CSV exported without header row",
-            "English UI texts in Step 2 buttons and Step 4 progress messages",
-            "Hardened XML parsing and upload size limit",
-        ],
-        "0.5.1": [
-            "Updated OpenAI models to the GPT-5.4/5.5 lineup",
-            "JSON and XML file upload",
-            "Load JSON from a URL in the upload step",
-            "Additional instructions for the structure analysis (Step 1)",
-            "Include checkboxes, select all/none and move buttons for Step 1 candidates",
-            "AI-assisted data transformation in Step 2",
-        ],
-        "0.5.0": [
-            "Cost transparency — sidebar shows token usage and estimated USD cost per step",
-        ],
-        "0.4.0": [
-            "Save to History button — append confirmed LLM mappings to history for future k-NN use",
-            "k-NN threshold slider — tune history match strictness per document (0.80–0.99)",
-            "Full 31-code fallback for unknown carriers when cross-encoder has no signal",
-            "Expanded AEB code keywords (IOD, CAS, ERR, HIN, WRN) with international carrier terms",
-        ],
-        "0.3.0": [
-            "Responses API migration (OpenAI)",
-            "Batched cross-encoder predictions",
-            "Vectorized cosine similarity",
-            "Persistent embedding disk cache",
-            "MAPPER_CONFIG wired into pipeline",
-            "Auto-detect CSV separator",
-        ],
-        "0.2.0": [
-            "BM25 lexical scoring",
-            "Keyword boost for AEB codes",
-            "Multilingual cross-encoder",
-            "Reduced embedding dimensions (1024)",
-        ],
-        "0.1.0": [
-            "Initial release",
-            "Hybrid mapping pipeline (k-NN + Bi-Encoder + Cross-Encoder + LLM)",
-            "Document analysis & extraction",
-        ],
-    }
 
     with st.popover("What's new?"):
         versions = list(CHANGELOG.items())

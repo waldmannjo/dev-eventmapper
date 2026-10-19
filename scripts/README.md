@@ -1,4 +1,17 @@
-# Validation Scripts
+# Scripts
+
+## release.py
+
+Computes the next version from Conventional Commits since the last `vX.Y.Z` tag
+and writes `VERSION` plus a draft `CHANGELOG` entry into `app.py`. Rules and
+release steps: see the module docstring and `CLAUDE.md` → Releases.
+
+```bash
+python scripts/release.py              # dry run
+python scripts/release.py --apply      # write app.py
+python scripts/release.py --set 1.0.0  # explicit version
+```
+
 
 ## validate_phase1.py
 
