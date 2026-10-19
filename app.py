@@ -129,6 +129,15 @@ def _final_mapping_filename(identcode) -> str:
     return f"final_mapping_{safe}.csv" if safe else "final_mapping.csv"
 
 
+# Step-4 columns only shown in the UI and the explanation export; the plain export keeps its column set.
+EXPLANATION_COLUMNS = ["needs_review", "reasoning", "candidates", "knn_matches"]
+
+
+def _plain_mapping_csv(df_display) -> bytes:
+    plain = df_display.drop(columns=[c for c in EXPLANATION_COLUMNS if c in df_display.columns])
+    return plain.to_csv(index=False, header=False, sep=";").encode("utf-8")
+
+
 def _candidates_to_df(candidates):
     """Convert list of candidate dicts to a DataFrame for st.data_editor."""
     rows = [
@@ -815,7 +824,7 @@ if st.session_state.current_step >= 4:
 
     st.dataframe(df_final_display, width="stretch")
 
-    csv_data = df_final_display.to_csv(index=False, header=False, sep=";").encode('utf-8')
+    csv_data = _plain_mapping_csv(df_final_display)
     st.download_button("💾 Download Mapping", csv_data, _final_mapping_filename(st.session_state.get("carrier_identcode")), "text/csv")
 
     # --- Save to History ---
