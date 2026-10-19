@@ -458,7 +458,7 @@ def run_mapping_step4(client, df, model_name, threshold: float = 0.60, progress_
     total_embed_input += _embed_usage_queries["input_tokens"]
 
     # 3. Vectorized cosine similarity (all queries vs all codes at once)
-    all_sims = cosine_similarity(q_vecs, code_vecs)  # (N, 31)
+    all_sims = cosine_similarity(q_vecs, code_vecs)  # (N, 32)
 
     pred_codes = []
     conf_scores = []
@@ -659,7 +659,7 @@ def run_mapping_step4(client, df, model_name, threshold: float = 0.60, progress_
             pos_idx = df.index.get_loc(idx)
             candidates = top_candidates_list[pos_idx]
 
-            # For unknown carriers the CE has no signal — pass all 31 codes so the LLM
+            # For unknown carriers the CE has no signal — pass all 32 codes so the LLM
             # isn't forced to choose from a bad shortlist.
             CE_NO_SIGNAL_THRESHOLD = 0.20
             if not candidates or candidates[0]['score'] < CE_NO_SIGNAL_THRESHOLD:

@@ -96,7 +96,7 @@ This affects OpenAI API calls and Hugging Face model downloads. **Do not remove*
 
 | File | Purpose |
 |------|---------|
-| `codes.py` | 31 AEB event codes with bilingual descriptions and `Keywords:` sections |
+| `codes.py` | 32 AEB event codes with bilingual descriptions and `Keywords:` sections |
 | `examples/CES_Umschlüsselungseinträge_all.xlsx` | 11k+ historical mappings for k-NN matching |
 | `backend/synonyms.py` | Domain vocabulary lists (`STATUS_SYNONYMS`, `REASON_SYNONYMS_*`) |
 
