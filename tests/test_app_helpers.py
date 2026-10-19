@@ -70,3 +70,29 @@ def test_include_survives_move():
 
     # A remains in stat with _include=True
     assert remaining.iloc[0]["_include"] == True
+
+
+from app import _final_mapping_filename
+
+
+def test_final_mapping_filename_with_identcode():
+    assert _final_mapping_filename("LAPOSTE_FR") == "final_mapping_LAPOSTE_FR.csv"
+
+
+def test_final_mapping_filename_without_identcode():
+    assert _final_mapping_filename("") == "final_mapping.csv"
+    assert _final_mapping_filename("   ") == "final_mapping.csv"
+    assert _final_mapping_filename(None) == "final_mapping.csv"
+
+
+def test_final_mapping_filename_strips_whitespace():
+    assert _final_mapping_filename("  DHL_DE  ") == "final_mapping_DHL_DE.csv"
+
+
+def test_final_mapping_filename_sanitizes_unsafe_chars():
+    assert _final_mapping_filename("../evil/name") == "final_mapping_EVIL_NAME.csv"
+    assert _final_mapping_filename("UPS US") == "final_mapping_UPS_US.csv"
+
+
+def test_final_mapping_filename_uppercases_identcode():
+    assert _final_mapping_filename("laposte_fr") == "final_mapping_LAPOSTE_FR.csv"
