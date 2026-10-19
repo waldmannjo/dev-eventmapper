@@ -29,10 +29,15 @@ from openai import OpenAI, AuthenticationError, RateLimitError, APIConnectionErr
 import backend as logic  # <-- Our new backend module
 from backend.mapper import HISTORY_FILE, CACHE_EMBEDDINGS, CACHE_DF, CACHE_META
 
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 
 # Newest first. The top key must equal VERSION (tests/test_release.py).
 CHANGELOG = {
+    "1.1.0": [
+        '"Download with explanation" in Step 4 — CSV with headers plus review flag, candidates, history matches and LLM reasoning per row; the plain download is unchanged',
+        "Step 4 table shows why each code was chosen: needs_review, candidates, knn_matches and reasoning columns",
+        "LLM-mapped rows show the model's own confidence; failed LLM calls are marked llm-failed instead of passing as confident results",
+    ],
     "1.0.0": [
         "First stable release — no functional changes since 0.6.0",
         "Version numbers now follow a fixed rule: major = breaking change to the mapping output (e.g. CSV format), minor = new feature, patch = fix",
