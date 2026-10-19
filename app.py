@@ -138,6 +138,33 @@ def _plain_mapping_csv(df_display) -> bytes:
     return plain.to_csv(index=False, header=False, sep=";").encode("utf-8")
 
 
+_FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
+# A formula character after a separator inside a cell: Excel on a "," locale starts a new
+# cell there, so "Zustellung,=1+1" would split into a formula cell.
+_FORMULA_AFTER_SEPARATOR = re.compile(r"([,;\t\r\n]\s*)([=+\-@])")
+
+
+def _defuse_formula(v):
+    if not isinstance(v, str):
+        return v
+    v = _FORMULA_AFTER_SEPARATOR.sub(r"\1'\2", v)
+    return "'" + v if v.startswith(_FORMULA_PREFIXES) else v
+
+
+def _explanation_csv(df_display) -> bytes:
+    # This file is opened in Excel: defuse text cells (and headers) that Excel would run as a
+    # formula (carrier texts, LLM output). Every column, whatever its dtype. The plain import
+    # export is left as is.
+    safe = df_display.astype(object).map(_defuse_formula)
+    safe.columns = [_defuse_formula(c) for c in safe.columns]
+    # utf-8-sig: Excel needs the BOM to read umlauts in carrier texts
+    return safe.to_csv(index=False, header=True, sep=";").encode("utf-8-sig")
+
+
+def _explanation_mapping_filename(identcode) -> str:
+    return _final_mapping_filename(identcode).replace(".csv", "_explained.csv")
+
+
 def _candidates_to_df(candidates):
     """Convert list of candidate dicts to a DataFrame for st.data_editor."""
     rows = [
@@ -826,6 +853,14 @@ if st.session_state.current_step >= 4:
 
     csv_data = _plain_mapping_csv(df_final_display)
     st.download_button("💾 Download Mapping", csv_data, _final_mapping_filename(st.session_state.get("carrier_identcode")), "text/csv")
+    st.download_button(
+        "🔍 Download with explanation",
+        _explanation_csv(df_final_display),
+        _explanation_mapping_filename(st.session_state.get("carrier_identcode")),
+        "text/csv",
+        help="With headers and the review columns (needs_review, candidates, knn_matches, reasoning). "
+             "Not for import: use Download Mapping for that.",
+    )
 
     # --- Save to History ---
     if SAVE_TO_HISTORY_ENABLED and not st.session_state.df_final.empty and "source" in st.session_state.df_final.columns:
