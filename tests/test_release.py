@@ -1,9 +1,10 @@
-import ast
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
 
 import pytest
-from release import APP, bump, changelog_draft, classify, insert_release
+import release
+from release import (APP, bump, changelog_draft, classify, gh_release_cmd, insert_release,
+                     read_app_release, release_notes)
 
 
 @pytest.mark.parametrize("subject, body, level", [
@@ -54,12 +55,8 @@ def test_insert_release_updates_version_and_prepends_entry():
 
 
 def _app_assignments():
-    tree = ast.parse(APP.read_text(encoding="utf-8"))
-    return {
-        t.id: ast.literal_eval(node.value)
-        for node in tree.body if isinstance(node, ast.Assign)
-        for t in node.targets if isinstance(t, ast.Name) and t.id in ("VERSION", "CHANGELOG")
-    }
+    version, changelog = read_app_release(APP.read_text(encoding="utf-8"))
+    return {"VERSION": version, "CHANGELOG": changelog}
 
 
 def test_app_version_matches_newest_changelog_entry():
@@ -75,3 +72,41 @@ def test_app_changelog_is_strictly_descending():
 def test_app_changelog_has_no_uncurated_placeholder():
     items = [i for entries in _app_assignments()["CHANGELOG"].values() for i in entries]
     assert not [i for i in items if i.startswith("TODO")]
+
+
+def test_release_notes_lists_entry_items():
+    changelog = {"1.1.0": ["New thing", "Fixed thing"], "1.0.0": ["Old"]}
+    assert release_notes(changelog, "1.1.0") == "- New thing\n- Fixed thing\n"
+
+
+@pytest.mark.parametrize("changelog", [{"1.0.0": ["Old"]}, {"1.1.0": []}, {"1.1.0": ["TODO: describe"]}])
+def test_release_notes_rejects_missing_or_uncurated_entry(changelog):
+    with pytest.raises(ValueError):
+        release_notes(changelog, "1.1.0")
+
+
+def test_gh_release_cmd_targets_existing_tag():
+    cmd = gh_release_cmd("1.1.0", "- New\n")
+    assert cmd[:4] == ["gh", "release", "create", "v1.1.0"]
+    assert "--verify-tag" in cmd
+    assert cmd[cmd.index("--title") + 1] == "Eventmapper 1.1.0"
+    assert cmd[cmd.index("--notes") + 1] == "- New\n"
+
+
+def test_publish_runs_gh_with_notes_from_app(monkeypatch):
+    calls = []
+    monkeypatch.setattr(release.subprocess, "run", lambda cmd, **kw: calls.append(cmd) or type("R", (), {"returncode": 0})())
+    assert release.main(["--publish"]) == 0
+    a = _app_assignments()
+    assert calls == [gh_release_cmd(a["VERSION"], release_notes(a["CHANGELOG"], a["VERSION"]))]
+
+
+def test_publish_exits_when_gh_fails(monkeypatch):
+    monkeypatch.setattr(release.subprocess, "run", lambda cmd, **kw: type("R", (), {"returncode": 1})())
+    with pytest.raises(SystemExit):
+        release.main(["--publish"])
+
+
+def test_publish_rejects_apply_combination():
+    with pytest.raises(SystemExit):
+        release.main(["--publish", "--apply"])
