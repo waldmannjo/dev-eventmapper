@@ -20,7 +20,7 @@ pytest tests/ -v               # Run tests (~25s)
 |------|-------------|
 | `app.py` | Streamlit UI, `MODEL_CONFIG`, `MAPPER_CONFIG` |
 | `backend/mapper.py` | Hybrid mapping engine (k-NN -> BM25 -> Cross-Encoder -> LLM) |
-| `codes.py` | 31 AEB event codes with bilingual descriptions and keywords |
+| `codes.py` | 32 AEB event codes with bilingual descriptions and keywords |
 | `examples/CES_...xlsx` | 11k+ historical mappings for k-NN matching |
 
 ## Pipeline (5 steps)
