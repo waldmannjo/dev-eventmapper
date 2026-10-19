@@ -37,7 +37,7 @@ Step 4 (mapping) is the core logic. See [ARCHITECTURE.md](ARCHITECTURE.md) for d
 - When changing OpenAI model IDs, update **all** of: `MODEL_CONFIG` + `PRICING` in `app.py` (same keys), the `model_name` defaults in `backend/{analyzer,extractor,merger}.py`, and tests asserting IDs/prices (`test_cost_tracking.py`, `test_analyzer_extra_instructions.py`).
 - **Releases:** run `python scripts/release.py` (dry run) → `--apply`; it derives the bump from Conventional Commits since the last `vX.Y.Z` tag and writes `VERSION` + a draft `CHANGELOG` entry (module level in `app.py`, drives the "What's new?" popover). Curate the draft, release via PR, then tag the merge on `main` (`git tag vX.Y.Z && git push origin vX.Y.Z`) — the tag is the baseline for the next bump.
   - Bump rule: breaking (`type!:` or `BREAKING CHANGE:` footer, e.g. CSV/output format change, removed feature) → major; `feat` → minor; `fix`/`harden`/`ui`/`refactor`/`perf` → patch; `docs`/`test`/`chore`/`ci` → no release. Mark breaking commits explicitly — the script can't infer it.
-  - The next release is **1.0.0** (`--set 1.0.0`); from then on the rule above applies unchanged.
+  - While `VERSION` is still 0.x, cut the next release with `--set 1.0.0`; from then on the rule above applies unchanged.
 - **All user-facing text is English**, including `progress_callback` messages in `backend/mapper.py`.
 
 ## Testing
