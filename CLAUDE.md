@@ -12,6 +12,7 @@ source venv/bin/activate        # Linux/Mac
 streamlit run app.py           # Run the app
 pip install -r requirements.txt # Install deps
 pytest tests/ -v               # Run tests (~25s)
+venv/bin/python -m pytest tests/ -q   # without an activated venv (bare `python` is not on PATH)
 ```
 
 ## Key Files
@@ -39,11 +40,14 @@ Step 4 (mapping) is the core logic. See [ARCHITECTURE.md](ARCHITECTURE.md) for d
   - Bump rule: breaking (`type!:` or `BREAKING CHANGE:` footer, e.g. CSV/output format change, removed feature) → major; `feat` → minor; `fix`/`harden`/`ui`/`refactor`/`perf` → patch; `docs`/`test`/`chore`/`ci` → no release. Mark breaking commits explicitly — the script can't infer it.
   - Type commits by effect on the app, not on the repo: dev tooling/scripts → `chore:` (no release), even on a `feat/` branch.
 - **All user-facing text is English**, including `progress_callback` messages in `backend/mapper.py`.
+- **Step-4 exports:** the plain CSV (`_plain_mapping_csv`, headerless, `;`) feeds a downstream import, so never change its columns; new `df_final` columns go into `EXPLANATION_COLUMNS`. "Download with explanation" must stay a `;` CSV (not .xlsx), with formula defusing (`_defuse_formula`).
 
 ## Testing
 
 - Pure helpers live in `app.py` and are tested by importing from `app` (see `tests/test_app_helpers.py`).
-- UI smoke test: `streamlit.testing.v1.AppTest.from_file("app.py")`; enter a dummy key into `at.sidebar.text_input[0]` first, or the app calls `st.stop()` before rendering.
+- UI smoke test: use the `real_streamlit` fixture (`conftest.py`) for `AppTest.from_file("app.py")`, because `tests/test_cost_tracking.py` replaces `streamlit` in `sys.modules` for the whole session. Enter a dummy key into `at.sidebar.text_input[0]` first, or the app calls `st.stop()` before rendering.
+- Step-4 fakes: a fake `CrossEncoder.predict` must return float32 like the real one; `normalize_input` lowercases embedded text, so marker strings in fake embeddings must be lowercase.
+- pandas is unpinned: test pandas-3 text-column behaviour with `pd.option_context("future.infer_string", True)`.
 
 ## Git Workflow
 
