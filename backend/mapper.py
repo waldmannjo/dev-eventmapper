@@ -461,7 +461,7 @@ def run_mapping_step4(client, df, model_name, threshold: float = 0.60, progress_
     for i, v in enumerate(q_vecs):
         if progress_callback:
             prog = 0.1 + (0.3 * (i / total_items))
-            progress_callback(prog, f"Vorfilterung Zeile {i+1}/{total_items}")
+            progress_callback(prog, f"Pre-filtering row {i+1}/{total_items}")
 
         # --- A. k-NN Check (History) with top-5 weighted voting ---
         knn_match_found = False
@@ -536,7 +536,7 @@ def run_mapping_step4(client, df, model_name, threshold: float = 0.60, progress_
         CE_BATCH_SIZE = 2048
         n_chunks = max(1, (total_pairs + CE_BATCH_SIZE - 1) // CE_BATCH_SIZE)
         if progress_callback:
-            progress_callback(0.45, f"Cross-Encoder Re-Ranking ({total_pairs} Paare, {n_chunks} Batches)...")
+            progress_callback(0.45, f"Cross-Encoder Re-Ranking ({total_pairs} pairs, {n_chunks} batches)...")
         if total_pairs <= CE_BATCH_SIZE:
             all_ce_scores = ce_model.predict(all_ce_pairs)
         else:
@@ -556,7 +556,7 @@ def run_mapping_step4(client, df, model_name, threshold: float = 0.60, progress_
                     progress_callback(
                         prog,
                         f"Cross-Encoder Re-Ranking — Batch {chunk_idx + 1}/{n_chunks} "
-                        f"({pairs_done}/{total_pairs} Paare, {rate:.0f} P/s, ETA {eta:.0f}s)"
+                        f"({pairs_done}/{total_pairs} pairs, {rate:.0f} pairs/s, ETA {eta:.0f}s)"
                     )
             all_ce_scores = np.concatenate(score_chunks)
 
@@ -597,7 +597,7 @@ def run_mapping_step4(client, df, model_name, threshold: float = 0.60, progress_
     elif all_ce_pairs and ce_skipped:
         # CE skipped: too many pairs — use embedding+BM25 score directly
         if progress_callback:
-            progress_callback(0.65, f"Cross-Encoder übersprungen ({total_pairs} Paare > Limit {ce_max_pairs}) — verwende Embedding-Score...")
+            progress_callback(0.65, f"Cross-Encoder skipped ({total_pairs} pairs > limit {ce_max_pairs}) — using embedding score...")
         offset = 0
         for row_idx_in_loop, i in enumerate(non_knn_rows):
             count = ce_pair_counts[row_idx_in_loop]
@@ -696,7 +696,7 @@ def run_mapping_step4(client, df, model_name, threshold: float = 0.60, progress_
             pass
             
     
-    if progress_callback: progress_callback(1.0, "Fertig!")
+    if progress_callback: progress_callback(1.0, "Done!")
     step4_usage = {
         "step4_embed": {
             "input_tokens": total_embed_input,
