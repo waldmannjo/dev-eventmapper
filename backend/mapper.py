@@ -308,6 +308,25 @@ def _format_knn_matches(matches):
     return "\n".join(f"{m['mapped_code']} {m['score']:.2f} {m['input']}" for m in matches)
 
 
+def _parse_llm_reasoning(value):
+    """Return the LLM's reasoning as text (JSON for non-text values), or None if absent."""
+    if value is None or isinstance(value, str):
+        return value
+    return json.dumps(value, ensure_ascii=False)
+
+
+def _apply_llm_result(df, idx, result):
+    """Write one LLM result into its row; an invalid response keeps the pre-LLM code."""
+    new_code = result["code"] if result else None
+    if new_code and any(c[0] == new_code for c in CODES):
+        df.at[idx, "final_code"] = new_code
+        df.at[idx, "confidence"] = result["confidence"]
+        df.at[idx, "source"] = "llm-batch"
+        df.at[idx, "reasoning"] = result["reasoning"] or ""
+    else:
+        df.at[idx, "source"] = "llm-failed"
+
+
 def _parse_llm_confidence(value):
     """Return the LLM's self-reported confidence as a float in [0, 1], or None if invalid."""
     if isinstance(value, bool) or not isinstance(value, (int, float)):
@@ -358,7 +377,7 @@ async def classify_single_row(async_client, row_text, candidates, hist_str, mode
             result = {
                 "code": res.get("code"),
                 "confidence": _parse_llm_confidence(res.get("confidence")),
-                "reasoning": res.get("reasoning"),
+                "reasoning": _parse_llm_reasoning(res.get("reasoning")),
             }
             return result, raw_usage
         except Exception as e:
@@ -724,28 +743,28 @@ def run_mapping_step4(client, df, model_name, threshold: float = 0.60, progress_
             })
             
         # Run Async Batch
+        results = None
         try:
             # Extract API Key safely
             api_key = client.api_key
             results, llm_usage = asyncio.run(run_llm_batch_async(api_key, tasks_data, model_name, progress_callback))
-            
-            # Process Results
-            # A failed or invalid response keeps the pre-LLM code but is marked "llm-failed"
-            for i, result in enumerate(results):
-                idx = tasks_data[i]['index']
-                new_code = result["code"] if result else None
-                if new_code and any(c[0] == new_code for c in CODES):
-                    df.at[idx, "final_code"] = new_code
-                    df.at[idx, "confidence"] = result["confidence"]
-                    df.at[idx, "source"] = "llm-batch"
-                    df.at[idx, "reasoning"] = result["reasoning"] or ""
-                else:
-                    df.at[idx, "source"] = "llm-failed"
-
         except Exception as e:
             print(f"Async Batch Error: {e}")
             df.loc[unsure_indices, "source"] = "llm-failed"
-            
+
+        # Process Results: one row per guard, so a bad result fails only its own row
+        llm_cols = ["final_code", "confidence", "source", "reasoning"]
+        for i, result in enumerate(results or []):
+            idx = tasks_data[i]['index']
+            before = {col: df.at[idx, col] for col in llm_cols}
+            try:
+                _apply_llm_result(df, idx, result)
+            except Exception as e:
+                print(f"LLM Result Error (row {idx}): {e}")
+                for col, value in before.items():
+                    df.at[idx, col] = value
+                df.at[idx, "source"] = "llm-failed"
+
     
     df["needs_review"] = [
         _needs_review(src, conf, cands)

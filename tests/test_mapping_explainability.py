@@ -246,3 +246,49 @@ def test_plain_export_excludes_explanation_columns():
     })
 
     assert _plain_mapping_csv(display).decode("utf-8") == "1;2;ARR;Arrived;0.9;emb+ce\n"
+
+
+# --- robustness of the LLM result loop --------------------------------------
+
+@pytest.mark.parametrize("reasoning, expected", [
+    ({"why": "depot scan"}, '{"why": "depot scan"}'),
+    (["a", "b"], '["a", "b"]'),
+    (42, "42"),
+    (None, ""),
+], ids=["object", "list", "number", "null"])
+def test_non_text_reasoning_is_stored_as_text(reasoning, expected):
+    # json_object mode lets the model send any JSON type. With pandas 3 text columns
+    # (future.infer_string), a non-text value in the "" -initialised column raises.
+    create = AsyncMock(return_value=_llm_response(
+        {"code": LLM_CODE, "confidence": 0.9, "reasoning": reasoning}
+    ))
+    with pd.option_context("future.infer_string", True):
+        df = _run(["closecall row"], threshold=1.01, ce_logits=CLOSE, llm_create=create)
+
+    assert df.loc[0, "source"] == "llm-batch"
+    assert df.loc[0, "reasoning"] == expected
+
+
+def test_one_bad_llm_result_fails_only_its_row():
+    baseline = _run(["closecall a", "closecall b"], ce_logits=CLOSE)
+    create = AsyncMock(return_value=_llm_response(
+        {"code": LLM_CODE, "confidence": 0.9, "reasoning": "r"}
+    ))
+    real_apply = mapper_module._apply_llm_result
+    calls = []
+
+    def flaky_apply(df, idx, result):
+        calls.append(idx)
+        if len(calls) == 1:
+            df.at[idx, "final_code"] = LLM_CODE  # half-written, then fails
+            raise TypeError("cannot store value")
+        return real_apply(df, idx, result)
+
+    with patch.object(mapper_module, "_apply_llm_result", side_effect=flaky_apply):
+        df = _run(["closecall a", "closecall b"], threshold=1.01, ce_logits=CLOSE, llm_create=create)
+
+    assert df["source"].tolist() == ["llm-failed", "llm-batch"]
+    # the failed row is rolled back to its pre-LLM state
+    assert df.loc[0, "final_code"] == baseline.loc[0, "final_code"]
+    assert df.loc[0, "confidence"] == baseline.loc[0, "confidence"]
+    assert df.loc[1, "final_code"] == LLM_CODE
