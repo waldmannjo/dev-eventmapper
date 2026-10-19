@@ -68,7 +68,7 @@ def _parse(data, delimiter):
 
 
 def _formula_cells(rows):
-    return [c for row in rows for c in row if c.strip().startswith(("=", "+", "-", "@"))]
+    return [c for row in rows for c in row if c.strip(' "').startswith(("=", "+", "-", "@"))]
 
 
 def test_explanation_csv_neutralises_formula_cells():
@@ -86,13 +86,27 @@ def test_explanation_csv_neutralises_formula_cells():
     assert row[4] == "0.9"  # numbers untouched
 
 
-@pytest.mark.parametrize("text", ["Zustellung,=1+1", "Zustellung, =1+1", "Zustellung\n-1+1"])
+@pytest.mark.parametrize("text", [
+    "Zustellung,=1+1", "Zustellung, =1+1", "Zustellung\n-1+1",
+    'Zustellung,"=1+1', 'Zustellung, " =1+1', '"=1+1',
+])
 def test_explanation_csv_safe_when_excel_splits_on_comma(text):
     # Excel on an English locale splits on "," instead of ";"
     df = _display_df()
     df["Event description"] = [text]
 
     assert _formula_cells(_parse(_explanation_csv(df), ",")) == []
+
+
+@pytest.mark.parametrize("delimiter", [";", ","])
+@pytest.mark.parametrize("column", ["Event code", "Event description"])
+def test_explanation_csv_safe_with_quotes_before_formula(column, delimiter):
+    # A quote between the separator and the formula character must not hide it,
+    # in the first column too, on both ";" and "," locales.
+    df = _display_df()
+    df[column] = ['"=1+1']
+
+    assert _formula_cells(_parse(_explanation_csv(df), delimiter)) == []
 
 
 def test_explanation_csv_neutralises_string_dtype_columns():

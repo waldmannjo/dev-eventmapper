@@ -140,15 +140,17 @@ def _plain_mapping_csv(df_display) -> bytes:
 
 _FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
 # A formula character after a separator inside a cell: Excel on a "," locale starts a new
-# cell there, so "Zustellung,=1+1" would split into a formula cell.
-_FORMULA_AFTER_SEPARATOR = re.compile(r"([,;\t\r\n]\s*)([=+\-@])")
+# cell there, so "Zustellung,=1+1" would split into a formula cell. Quotes and spaces in
+# between ('Zustellung,"=1+1') do not stop it.
+_FORMULA_AFTER_SEPARATOR = re.compile(r'([,;\t\r\n][\s"]*)([=+\-@])')
 
 
 def _defuse_formula(v):
     if not isinstance(v, str):
         return v
     v = _FORMULA_AFTER_SEPARATOR.sub(r"\1'\2", v)
-    return "'" + v if v.startswith(_FORMULA_PREFIXES) else v
+    starts_formula = v.startswith(_FORMULA_PREFIXES) or v.lstrip(' "').startswith(_FORMULA_PREFIXES)
+    return "'" + v if starts_formula else v
 
 
 def _explanation_csv(df_display) -> bytes:
